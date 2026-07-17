@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
+
+minimumReleaseAgeExclude:
+  - '@jsr/cbj__vignette-core@0.3.4'
+  - '@jsr/cbj__vignette-frame@0.3.4'
+  - '@jsr/cbj__vignette-target-dom@0.3.4'
+  - '@jsr/cbj__vignette-target-obs@0.3.4'
+  - '@jsr/cbj__vignette-vite@0.3.4'
+  - '@jsr/cbj__vignette@0.3.4'

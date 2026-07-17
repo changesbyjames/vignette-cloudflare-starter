@@ -1,0 +1,20 @@
+{
+  "name": "@vignette-starter/obs-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cbj/vignette-core": "jsr:0.3.4",
+    "@cbj/vignette-target-obs": "jsr:0.3.4",
+    "@vignette-starter/composition-config": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3"
+  }
+}

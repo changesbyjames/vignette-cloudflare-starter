@@ -1,0 +1,43 @@
+{
+  "name": "@vignette-starter/composition",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "deploy": "vite build && wrangler deploy --config dist/cloudflare_vignette_starter/wrangler.json",
+    "dev": "vite build && wrangler dev --config dist/cloudflare_vignette_starter/wrangler.json --port 5173",
+    "test:smoke": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cbj/vignette": "jsr:0.3.4",
+    "@cbj/vignette-core": "jsr:0.3.4",
+    "@cbj/vignette-frame": "jsr:0.3.4",
+    "@cbj/vignette-target-dom": "jsr:0.3.4",
+    "@cbj/vignette-vite": "jsr:0.3.4",
+    "@fontsource-variable/inter": "5.2.8",
+    "@hono/standard-validator": "0.3.0",
+    "@vignette-starter/composition-config": "workspace:*",
+    "@xstate/store": "3.13.0",
+    "hono": "4.12.30",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "yoga-wasm-web": "0.3.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.43.0",
+    "@cloudflare/workers-types": "4.20260701.1",
+    "@playwright/test": "1.61.1",
+    "@tailwindcss/vite": "4.3.2",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "tailwindcss": "4.3.2",
+    "typescript": "5.9.3",
+    "vite": "8.1.4",
+    "wrangler": "4.107.0"
+  }
+}

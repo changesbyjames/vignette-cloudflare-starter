@@ -1,0 +1,12 @@
+.DS_Store
+.dev.vars
+.env
+.playwright-mcp
+.wrangler
+coverage
+dist
+node_modules
+playwright-report
+test-results
+*.tsbuildinfo
+*.log

@@ -1,0 +1,19 @@
+{
+  "name": "cloudflare-vignette-starter",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@11.13.0",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=11.13.0"
+  },
+  "scripts": {
+    "build": "corepack pnpm --filter @vignette-starter/composition build",
+    "deploy": "corepack pnpm --filter @vignette-starter/composition deploy",
+    "dev": "corepack pnpm --filter @vignette-starter/composition dev",
+    "obs": "corepack pnpm --filter @vignette-starter/obs-runtime dev",
+    "test:smoke": "corepack pnpm --filter @vignette-starter/composition test:smoke",
+    "typecheck": "corepack pnpm -r typecheck"
+  }
+}
