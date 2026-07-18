@@ -35,9 +35,6 @@ importers:
       '@strangecyan/vignette-vite':
         specifier: 0.4.1
         version: 0.4.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vite@8.1.4(@types/node@24.10.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0))
-      '@vignette-starter/composition-config':
-        specifier: workspace:*
-        version: link:../../packages/composition-config
       '@xstate/store':
         specifier: 3.13.0
         version: 3.13.0(react@19.2.7)
@@ -93,12 +90,6 @@ importers:
       wrangler:
         specifier: 4.107.0
         version: 4.107.0(@cloudflare/workers-types@4.20260701.1)
-
-  packages/composition-config:
-    devDependencies:
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
 
 packages:
 

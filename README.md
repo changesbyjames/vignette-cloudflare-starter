@@ -9,8 +9,6 @@ CLI previews compiled scenes and applies the stream to OBS.
 ```text
 apps/
   composition/        Cloudflare Worker, Durable Object, frame, and browser client
-packages/
-  composition-config/ Shared project identity
 ```
 
 The example composition has one color source, one scene, and one generated title frame. Its single
@@ -104,8 +102,8 @@ pnpm obs -- --password 'your-obs-websocket-password'
   when a Durable Object instance starts.
 
 Start customization in `apps/composition/src/composition.tsx` and
-`apps/composition/src/state/composition-store.ts`. Keep the shared project name in
-`packages/composition-config/src/index.ts` consistent with the `vignette obs --project` argument.
+`apps/composition/src/state/composition-store.ts`. Keep the project ID in `composition.tsx`
+consistent with the `vignette obs --project` argument in the root script.
 
 ## License
 

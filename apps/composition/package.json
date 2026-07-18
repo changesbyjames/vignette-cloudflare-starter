@@ -18,7 +18,6 @@
     "@strangecyan/vignette-vite": "0.4.1",
     "@fontsource-variable/inter": "5.2.8",
     "@hono/standard-validator": "0.3.0",
-    "@vignette-starter/composition-config": "workspace:*",
     "@xstate/store": "3.13.0",
     "hono": "4.12.30",
     "react": "19.2.7",

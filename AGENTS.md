@@ -1,45 +1,54 @@
 # AGENTS.md
 
-Guidance for agents working in this Cloudflare Vignette starter. Read this before making changes:
-it covers the architecture you must preserve, the library APIs you should reach for, recipes for
-the most common tasks, and hard-won lessons from building a full game-show production on top of
-this template.
+This document gives instructions for agents that work on this Cloudflare Vignette starter.
+Read this document before you change the project.
+Obey the architecture rules, API rules, procedures, and test requirements in this document.
+
+Project-specific names, code identifiers, and broadcast terms are approved technical terms in this document.
 
 ## Contents
 
-- [What this is](#what-this-is) — orientation and data flow
-- [Commands](#commands) — how to build, run, and verify
-- [Vocabulary](#vocabulary) — terms used throughout this file and the library
-- [Project map](#project-map) — where each concern lives
-- [Core invariants](#core-invariants) — rules that must never be broken
-- [Library cheat sheet](#library-cheat-sheet) — what to import and from where
-- [Recipe: change the composition](#recipe-change-the-composition)
-- [Recipe: add live overlay state](#recipe-add-live-overlay-state-useremotestore)
-- [Recipe: add a control route](#recipe-add-a-control-route)
-- [The control client (studio pattern)](#the-control-client-studio-pattern)
+- [System description](#system-description)
+- [Commands](#commands)
+- [Terms](#terms)
+- [Project files](#project-files)
+- [Architecture rules](#architecture-rules)
+- [Library imports](#library-imports)
+- [Change the composition](#change-the-composition)
+- [Add live overlay state](#add-live-overlay-state)
+- [Add a control route](#add-a-control-route)
+- [Control client](#control-client)
 - [CLI preview and OBS](#cli-preview-and-obs)
-- [Animating overlays (Motion for React)](#animating-overlays-motion-for-react)
+- [Animate overlays](#animate-overlays)
 - [Optional stinger transitions](#optional-stinger-transitions)
-- [Style and testing](#style-and-testing)
-- [One-time setup: renaming a fresh copy](#one-time-setup-renaming-a-fresh-copy)
+- [Code style and tests](#code-style-and-tests)
+- [Rename a new copy](#rename-a-new-copy)
 
-## What this is
+## System description
 
-A pnpm workspace for a React-authored Vignette composition hosted on a Cloudflare Worker.
-Vignette (the `@strangecyan/vignette*` packages) lets React describe
-broadcast graphics — sources, scenes, layers, and Yoga-laid-out boxes — as declarative data that
-independent runtimes then realize: a DOM compositor in the browser and an OBS runtime over
-obs-websocket.
+This project is a pnpm workspace.
+It contains a Vignette composition that uses React.
+A Cloudflare Worker hosts the composition.
 
-In this starter:
+Vignette includes the `@strangecyan/vignette*` packages.
+Vignette lets React describe broadcast graphics as declarative data.
+This data defines sources, scenes, layers, and boxes that use Yoga layout.
+Separate runtimes use this data to make the graphics.
+The browser uses a DOM compositor.
+OBS uses a runtime through obs-websocket.
 
-- A **Durable Object** owns application state, renders the React composition exactly once, and
-  publishes compiled runtime updates over SSE.
-- The **Vignette CLI** consumes those updates for PNG previews and OBS convergence.
-- The **browser client** renders the same composition with the DOM compositor and provides
-  operator controls.
-- **Frames** (`*.frame.tsx`) are server-rendered overlay documents served at the edge; they
-  receive live data over their own SSE feed.
+This starter has these parts:
+
+- A **Durable Object** owns the application state.
+- The Durable Object renders the React composition one time.
+- The Durable Object sends compiled runtime updates through SSE.
+- The **Vignette CLI** uses the updates for PNG previews and OBS convergence.
+- **OBS convergence** makes managed OBS resources agree with the compiled composition.
+- The **browser client** uses the DOM compositor to render the same composition.
+- The browser client also gives controls to the operator.
+- **Frames** are server-rendered overlay documents in `*.frame.tsx` files.
+- The Worker serves frames at the edge.
+- Frames receive live data through a separate SSE feed.
 
 ```text
 operator controls --HTTP--> application store (Durable Object) --+--> composition
@@ -47,284 +56,362 @@ operator controls --HTTP--> application store (Durable Object) --+--> compositio
                             +--SSE /api/store/:ref--> frames ----+        +--SSE /api/runtime--> browser / OBS runtime
 ```
 
-### The two SSE feeds are deliberately separate. Keep them separate.
+### Keep the two SSE feeds separate
 
-- `/api/runtime` carries compiled Vignette **setup and composition updates** to the DOM and OBS
-  runtimes. This is structural: which sources, scenes, and layers exist and where they sit.
-- `/api/store/:ref` carries **serializable application state** to hydrated React frames. This is
-  content: titles, scores, cues.
+- `/api/runtime` sends compiled Vignette setup data and composition updates to the DOM and OBS runtimes.
+- This feed defines the sources, scenes, layers, and their positions.
+- `/api/store/:ref` sends serializable application state to hydrated React frames.
+- This feed contains data such as titles, scores, and cues.
 
-This split lets a frame react to show data without the composition rebuilding or the frame
-document remounting. A state update must change an overlay without reconstructing the composition
-or reloading the frame. The smoke test verifies this by placing a marker on the frame document and
-checking it survives a mutation — if your change breaks that test, you have almost certainly
-coupled the two feeds.
+This separation lets a frame respond to show data without a new composition build.
+It also prevents the frame document from mounting again.
+A state update must change an overlay without rebuilding the composition or reloading the frame.
+
+The smoke test puts a marker on the frame document.
+The test makes sure that the marker stays after a state change.
+If the marker does not stay, the change probably connected the two feeds incorrectly.
 
 ## Commands
 
-| Command | What it does |
+| Command | Function |
 | --- | --- |
-| `pnpm dev` | Build and run the composition locally at `http://127.0.0.1:5173`. |
-| `pnpm exec vignette preview --snapshot http://127.0.0.1:5173/api/runtime --name vignette-starter` | Capture the first compiled scene as a PNG under `vignette-preview/`. |
-| `pnpm exec vignette obs --project vignette-starter --obs-url ws://127.0.0.1:4455 --password <password> --url http://127.0.0.1:5173/api/runtime` | Run the standard OBS runtime until interrupted; omit `--password` when authentication is disabled. |
-| `pnpm obs` | Run the same OBS CLI command with the starter defaults; append `-- --password <password>` when authentication is enabled. |
-| `pnpm typecheck` | Typecheck every workspace package. |
-| `pnpm build` | Build the Worker and browser assets. |
-| `pnpm test:smoke` | Playwright smoke test against the real built worker: frame serving, state, SSE replay, mutation without reload. |
+| `pnpm dev` | Build and run the local composition at `http://127.0.0.1:5173`. |
+| `pnpm exec vignette preview --snapshot http://127.0.0.1:5173/api/runtime --name vignette-starter` | Save the first compiled scene as a PNG in `vignette-preview/`. |
+| `pnpm exec vignette obs --project vignette-starter --obs-url ws://127.0.0.1:4455 --password <password> --url http://127.0.0.1:5173/api/runtime` | Run the standard OBS runtime until an interrupt occurs. |
+| `pnpm obs` | Run the OBS CLI command with the starter default values. |
+| `pnpm typecheck` | Type-check all workspace packages. |
+| `pnpm build` | Build the Worker and the browser assets. |
+| `pnpm test:smoke` | Run the Playwright smoke test against the built Worker. |
 | `pnpm deploy` | Build and deploy the Worker. |
 
-**Before declaring work done, run `pnpm typecheck` and `pnpm test:smoke`.** There are no separate
-lint, format, or unit-test scripts in this workspace; the smoke test is the verification bar.
-`pnpm test:smoke` builds first and runs against real routes, so it also catches build breakage.
+If OBS authentication is off, remove `--password` from the full OBS command.
+If OBS authentication is on, add `-- --password <password>` to `pnpm obs`.
 
-Requirements: Node 22+, pnpm 11 (`corepack enable` once if pnpm is missing). Run `pnpm exec
-playwright install chromium` once before using `vignette preview`.
+Before you complete work, run `pnpm typecheck` and `pnpm test:smoke`.
+This workspace does not have separate lint, format, or unit-test scripts.
+The smoke test is the required verification test.
+The smoke test builds the project and tests the real routes.
+Thus, it also finds build failures.
 
-## Vocabulary
+Use Node 22 or later.
+Use pnpm 11.
+If pnpm is not available, run `corepack enable` one time.
+Before the first Vignette preview, run `pnpm exec playwright install chromium` one time.
 
-These terms come from the Vignette library and are used precisely throughout this file:
+## Terms
 
-- A **source** is one reusable resource definition — image, media, browser, color, or
-  target-native. Declared once under `<Sources>`, placed many times.
+Use these Vignette terms with the specified meanings:
+
+- A **source** is one reusable resource definition.
+- A source can define an image, media, browser, color, or target-native resource.
+- Declare a source one time under `<Sources>`.
+- You can place the source many times.
 - A **layer** is one placement of a source in a scene.
-- A **box** is a virtual Yoga layout container. It participates in layout but never becomes a DOM
-  or OBS object.
-- A **scene** is an independently materialized arrangement of layers.
-- A **frame** is a typed, server-rendered React overlay document (`*.frame.tsx`), placed in the
-  composition via `View` and hydrated in the browser.
-- A **compiled snapshot** is the immutable, target-neutral output of the composer, with a
-  monotonic revision. Runtimes consume snapshots; they never see React.
-- The **runtime message stream** is a closed union of `setup` (asset manifest), `update` (complete
-  desired snapshot), and `event` (one-shot command).
+- A **box** is a virtual container that uses Yoga layout.
+- A box participates in layout, but it does not become a DOM or OBS object.
+- A **scene** is an arrangement of layers that a runtime can make independently.
+- A **frame** is a typed, server-rendered React overlay document in a `*.frame.tsx` file.
+- Place a frame in the composition with `View`.
+- The browser hydrates the frame.
+- A **compiled snapshot** is the immutable, target-neutral output of the composer.
+- Each compiled snapshot has a revision that always increases.
+- Runtimes use snapshots and do not receive React.
+- The **runtime message stream** is a closed union of `setup`, `update`, and `event` messages.
+- A `setup` message contains the asset manifest.
+- An `update` message contains the complete required snapshot.
+- An `event` message contains a command that occurs one time.
 
-Two identity rules follow from this model:
+Use these identity and layout rules:
 
-- Remote resources are identified by **stable explicit IDs** (`sceneId`, `sourceId`, `layerId`),
-  never by React keys. Keys are reconciliation hints only.
-- **Yoga owns layout.** The common style language is narrower than CSS by design; DOM CSS does not
-  independently lay out the scene.
+- Identify remote resources with stable, explicit `sceneId`, `sourceId`, and `layerId` values.
+- Do not identify remote resources with React keys.
+- React keys only help React reconcile elements.
+- Yoga controls the layout.
+- The common style language intentionally has fewer features than CSS.
+- DOM CSS must not independently control scene layout.
 
-## Project map
+## Project files
 
-| Concern | Starting point |
+| Function | Start file or command |
 | --- | --- |
-| Composition (sources, scenes, layers) | `apps/composition/src/composition.tsx` |
-| Composer root construction (canvas, assets, Yoga) | `apps/composition/src/composition-runtime.ts` |
-| Application state (@xstate/store + zod) | `apps/composition/src/state/composition-store.ts` |
+| Composition sources, scenes, and layers | `apps/composition/src/composition.tsx` |
+| Composer root, canvas, assets, and Yoga | `apps/composition/src/composition-runtime.ts` |
+| Application state with @xstate/store and zod | `apps/composition/src/state/composition-store.ts` |
 | Durable Object persistence | `apps/composition/src/state/durable.ts` |
-| Remote store reference (typed frame/server bridge) | `apps/composition/src/state/store-ref.ts` |
-| Worker, API routes, Durable Object | `apps/composition/src/worker.tsx` |
+| Typed remote store reference | `apps/composition/src/state/store-ref.ts` |
+| Worker, API routes, and Durable Object | `apps/composition/src/worker.tsx` |
 | Overlay frame | `apps/composition/src/frames/title.frame.tsx` |
-| Control client + programme preview | `apps/composition/src/client/App.tsx` |
-| PNG preview and standard OBS runtime | `pnpm exec vignette preview ...` / `pnpm exec vignette obs ...` |
-| Shared project identity | `packages/composition-config/src/index.ts` |
+| Control client and program preview | `apps/composition/src/client/App.tsx` |
+| PNG preview and standard OBS runtime | `pnpm exec vignette preview ...` and `pnpm exec vignette obs ...` |
 | Smoke test | `apps/composition/tests/smoke.spec.ts` |
-| Vite plugins (Vignette, React, Tailwind, Cloudflare, Worker Yoga) | `apps/composition/vite.config.ts` |
-| Worker name, DO binding, routes | `apps/composition/wrangler.jsonc` |
+| Vite plugins | `apps/composition/vite.config.ts` |
+| Worker name, Durable Object binding, and routes | `apps/composition/wrangler.jsonc` |
 
-Keep `COMPOSITION_PROJECT_NAME` in `composition-config` consistent with the `--project` value passed
-to `vignette obs`. That value identifies which OBS resources the project manages; do not introduce
-another project ID in scripts or documentation.
+Keep `COMPOSITION_PROJECT_ID` in `composition.tsx` equal to the `vignette obs --project` value in the root script.
+This value identifies the OBS resources that the project manages.
+Do not add a different project ID to scripts or documentation.
 
-## Core invariants
+## Architecture rules
 
-1. **Only serializable application state is persisted.** React trees, Vignette runtime objects,
-   and stores are rebuilt when a Durable Object instance starts. Persist only the store context
-   (`state/durable.ts`), and version the persisted shape when it evolves.
-2. **The composition renders exactly once per Durable Object instance.** Dynamic configuration
-   flows into React through `SceneProvider` and application state; never call `root.render` a
-   second time to reflect a state change.
-3. **Frames are stateless edge concerns.** `*.frame.tsx` files are discovered by the Vite plugin
-   and served by the Worker without waking the Durable Object. Frames get live data by subscribing
-   to `/api/store/:ref`, never by importing a server-side store. Frame modules are imported for
-   both server rendering and browser hydration, so they must remain browser-safe.
-4. **The platform owns the transport; the library owns the messages.** `root.messages(signal)`
-   yields runtime messages and `toSseEvent` formats them. Swapping SSE for a WebSocket or queue is
-   a change in `worker.tsx`, not in the library.
-5. **Validate every mutation at the server boundary.** All control routes use zod schemas via
-   `sValidator`. Cap text lengths before copy can go on air.
-6. **Explicit IDs identify remote resources; React keys never do.**
-7. **OBS resources outside the managed namespace are never touched.** The OBS target only
-   creates, modifies, and deletes names under `vignette::<projectId>::`. Manual edits to managed
-   resources are drift and are overwritten on the next convergence pass.
-8. **Async target errors are not React exceptions.** The composer publishes revisions without
-   waiting for DOM/OBS settlement. The standard CLI reports runtime errors to stderr; use a custom
-   runtime only when an application must consume structured target status.
+1. **Persist only serializable application state.**
+   Rebuild React trees, Vignette runtime objects, and stores when a Durable Object instance starts.
+   Persist only the store context in `state/durable.ts`.
+   Add a version when you change the persisted data shape.
 
-## Library cheat sheet
+2. **Render the composition one time for each Durable Object instance.**
+   Send dynamic configuration to React through `SceneProvider` and application state.
+   Do not call `root.render` again for a state change.
 
-All Vignette packages are versioned together (currently `0.4.1`). Import from these paths — do not
-hand-roll bridges the library already provides:
+3. **Keep frames stateless at the edge.**
+   The Vite plugin finds `*.frame.tsx` files.
+   The Worker serves these files without starting the Durable Object.
+   Frames must subscribe to `/api/store/:ref` for live data.
+   Frames must not import a server-side store.
+   Both server rendering and browser hydration import frame modules.
+   Thus, frame modules must be safe for the browser.
 
-| Import path | Key exports used here |
+4. **Let the platform control the transport and the library control the messages.**
+   `root.messages(signal)` supplies runtime messages.
+   `toSseEvent` changes these messages to the SSE format.
+   To replace SSE with a WebSocket or queue, change `worker.tsx`.
+   Do not make this transport change in the library.
+
+5. **Validate each mutation at the server boundary.**
+   Use zod schemas through `sValidator` for all control routes.
+   Limit text length before the text can go on air.
+
+6. **Use explicit IDs for remote resources.**
+   Do not use React keys as remote resource IDs.
+
+7. **Do not change OBS resources outside the managed namespace.**
+   The OBS target can create, change, and delete names only under `vignette::<projectId>::`.
+   Manual changes to managed resources cause drift.
+   The next convergence operation replaces these manual changes.
+
+8. **Do not handle asynchronous target errors as React exceptions.**
+   The composer publishes revisions without waiting for DOM or OBS to settle.
+   The standard CLI writes runtime errors to standard error.
+   Use a custom runtime only if the application must use structured target status.
+
+## Library imports
+
+All Vignette packages use the same version.
+The current version is `0.4.1`.
+Import the listed items from these paths.
+Do not make a replacement for a bridge that the library supplies.
+
+| Import path | Exports used in this project |
 | --- | --- |
 | `@strangecyan/vignette` | `Broadcast`, `Sources`, `Scene`, `Layer`, `Box`, `SceneLayer`, `ColorSource`, `ImageSource`, `MediaSource`, `BrowserSource`, `createComposerRoot` |
 | `@strangecyan/vignette-core` | `projectId`, `sceneId`, `sourceId`, `layerId`, `asset`, `LayoutStyle`, `deepFreeze` |
-| `@strangecyan/vignette-core/sse` | `toSseEvent` (format `root.messages()` output for an SSE writer) |
-| `@strangecyan/vignette-core/runtime` | `consumeRuntimeMessages` (apply a message stream to a runtime) |
-| `@strangecyan/vignette-core/layout-yoga` | `yogaLayoutEngine` (Yoga-backed layout engine passed to the composer root) |
+| `@strangecyan/vignette-core/sse` | `toSseEvent` formats `root.messages()` output for an SSE writer. |
+| `@strangecyan/vignette-core/runtime` | `consumeRuntimeMessages` applies a message stream to a runtime. |
+| `@strangecyan/vignette-core/layout-yoga` | `yogaLayoutEngine` supplies the Yoga layout engine to the composer root. |
 | `@strangecyan/vignette-frame` | `frame`, `View`, `SceneProvider`, `createSceneStore` |
 | `@strangecyan/vignette-frame/remote-store` | `defineRemoteStore`, `encodeRemoteStoreSnapshot` |
 | `@strangecyan/vignette-frame/remote-store/server` | `remoteStoreSnapshots` |
 | `@strangecyan/vignette-frame/remote-store/client` | `useRemoteStore` |
 | `@strangecyan/vignette-frame/server` | `createFrameRequestHandler` |
-| `@strangecyan/vignette-target-dom/react` | `useCompositor`, `sseRuntimeSource` (browser) |
-| `@strangecyan/vignette-cli` | `vignette preview` and `vignette obs` commands (default Node tooling) |
-| `@strangecyan/vignette-target-obs` | `OBSRuntime`, codecs, and transports (custom-runtime escape hatch) |
-| `@strangecyan/vignette-vite` | `vignette()` Vite plugin (frame discovery, asset manifests) |
-| `virtual:vignette/frames`, `virtual:vignette/assets` | Generated `frames` / `assets` manifests from the Vite plugin |
+| `@strangecyan/vignette-target-dom/react` | `useCompositor`, `sseRuntimeSource` for the browser |
+| `@strangecyan/vignette-cli` | `vignette preview` and `vignette obs` commands for Node |
+| `@strangecyan/vignette-target-obs` | `OBSRuntime`, codecs, and transports for a custom runtime |
+| `@strangecyan/vignette-vite` | `vignette()` Vite plugin for frame discovery and asset manifests |
+| `virtual:vignette/frames`, `virtual:vignette/assets` | Generated `frames` and `assets` manifests from the Vite plugin |
 
-Historical note: `useRemoteStore` and friends are part of the library. Do not build a
-`lib/remote-store` bridge; older examples that did so predate the integration.
+`useRemoteStore` and its related functions are part of the library.
+Do not make a `lib/remote-store` bridge.
+Old examples can contain this bridge because they were made before the library integration.
 
-If you register a **custom source extension**, it has three facets that must be registered
-separately: a source module on the composer root, a DOM renderer on `DOMRuntime`/`useCompositor`,
-and an OBS codec on `OBSRuntime`. The CLI registers built-in codecs and the official MoQ codec, not
-project-specific extensions. A custom OBS source therefore requires the custom-runtime escape hatch
-described below (see the preview-parity rule under the control client).
+A custom source extension has three separate parts:
 
-## Recipe: change the composition
+- Register a source module on the composer root.
+- Register a DOM renderer on `DOMRuntime` or `useCompositor`.
+- Register an OBS codec on `OBSRuntime`.
 
-Structural changes — new sources, scenes, layers, or layout — happen in
-`apps/composition/src/composition.tsx`:
+The CLI registers the built-in codecs and the official MoQ codec.
+The CLI does not register project-specific extensions.
+Therefore, a custom OBS source requires a custom runtime.
+Also obey the preview parity rule in the [Control client](#control-client) section.
 
-1. Declare reusable sources under `<Sources>` with explicit `sourceId`s.
-2. Place them in a `<Scene id={...}>` with `<Layer id={...} sourceId={...}>`, using `<Box>` for
-   Yoga layout containers. Boxes are layout-only; they create no remote objects.
-3. For image/media sources, reference files with `asset(...)` and register the glob in the
-   `vignette({ assets: ... })` Vite plugin options — never handwrite public URLs. Both runtimes
-   then resolve the same content-versioned file.
-4. For a typed overlay document, define a frame (see below) and place it with `<View>` beneath
-   `SceneProvider`.
+## Change the composition
 
-Remember: the composition describes *structure*. If you are tempted to re-render the composition
-to change *content* (a title, a score), you want the remote-store path instead.
+Make structural changes in `apps/composition/src/composition.tsx`.
+Structural changes include new sources, scenes, layers, and layout.
 
-Constraints inherited from the library's compatibility contract:
+1. Declare reusable sources under `<Sources>`.
+2. Give each source an explicit `sourceId`.
+3. Put sources in `<Scene id={...}>` with `<Layer id={...} sourceId={...}>`.
+4. Use `<Box>` for Yoga layout containers.
+5. Do not use boxes to make remote objects.
+6. For image or media sources, refer to files with `asset(...)`.
+7. Register the asset glob in the `vignette({ assets: ... })` Vite plugin options.
+8. Do not write public asset URLs manually.
+9. Make sure that both runtimes resolve the same content-versioned file.
+10. For a typed overlay document, define a frame.
+11. Put the frame in `<View>` below `SceneProvider`.
 
-- Media needs declared dimensions/aspect information; there is no async intrinsic sizing.
-- DOM supports opacity; OBS diagnoses and omits non-unit opacity in V1.
-- A reusable browser source cannot have incompatible realized native sizes in OBS; use distinct
-  source IDs instead.
+The composition describes structure.
+Do not render the composition again to change content such as a title or score.
+Use the remote-store data path for content changes.
 
-## Recipe: add live overlay state (`useRemoteStore`)
+Obey these library compatibility limits:
 
-The complete data path for a remotely driven value:
+- Declare dimensions or aspect information for media.
+- The library cannot get intrinsic media size asynchronously.
+- The DOM supports opacity.
+- OBS V1 reports and omits opacity values that are not `1`.
+- Do not use one reusable browser source with different native sizes in OBS.
+- Use separate source IDs when the native sizes are different.
+
+## Add live overlay state
+
+Use `useRemoteStore` for a value that remote controls change.
+The complete data path is:
 
 ```text
 POST /api/title -> validate -> store.trigger.setTitle -> persist context
-  -> SSE /api/store/composition -> useRemoteStore(...) -> re-render inside the existing frame
+  -> SSE /api/store/composition -> useRemoteStore(...) -> render in the existing frame
 ```
 
-To add a new remotely driven value:
+Use this procedure:
 
-1. **Define serializable state and events** in the `@xstate/store` store with zod-validated
-   events (`state/composition-store.ts`). Keep the shape serializable — it is what the Durable
-   Object persists.
+1. Define serializable state and events in the `@xstate/store` store.
+2. Put the definitions in `state/composition-store.ts`.
+3. Validate events with zod.
+4. Keep the state shape serializable because the Durable Object persists it.
+5. Give the store a typed reference in `state/store-ref.ts`.
+6. Specify a stable ID, a URL, and a phantom type in the reference.
 
-2. **Give the store a typed reference** — a stable ID, a URL, and a phantom type, so frames can
-   infer the snapshot type without importing the live store (`state/store-ref.ts`):
+```ts
+import { defineRemoteStore } from "@strangecyan/vignette-frame/remote-store";
 
-   ```ts
-   import { defineRemoteStore } from "@strangecyan/vignette-frame/remote-store";
+export const compositionStoreRef = defineRemoteStore<CompositionStore>({
+  id: "composition",
+  url: "/api/store/composition",
+});
+```
 
-   export const compositionStoreRef = defineRemoteStore<CompositionStore>({
-     id: "composition",
-     url: "/api/store/composition",
-   });
-   ```
+7. Stream snapshots from the server in `worker.tsx`.
+8. Send the current snapshot immediately when a request starts.
+9. Send updates until the request ends.
 
-3. **Stream snapshots from the server** (`worker.tsx`). The endpoint must replay the current
-   snapshot immediately, then send updates for the lifetime of the request:
+```ts
+import { encodeRemoteStoreSnapshot } from "@strangecyan/vignette-frame/remote-store";
+import { remoteStoreSnapshots } from "@strangecyan/vignette-frame/remote-store/server";
 
-   ```ts
-   import { encodeRemoteStoreSnapshot } from "@strangecyan/vignette-frame/remote-store";
-   import { remoteStoreSnapshots } from "@strangecyan/vignette-frame/remote-store/server";
+return streamSSE(c, async (stream) => {
+  for await (const snapshot of remoteStoreSnapshots(store, c.req.raw.signal)) {
+    await stream.writeSSE({ data: encodeRemoteStoreSnapshot(snapshot) });
+  }
+});
+```
 
-   return streamSSE(c, async (stream) => {
-     for await (const snapshot of remoteStoreSnapshots(store, c.req.raw.signal)) {
-       await stream.writeSSE({ data: encodeRemoteStoreSnapshot(snapshot) });
-     }
-   });
-   ```
+`remoteStoreSnapshots` combines updates while a consumer is busy.
+This behavior is correct for graphics because a slow client needs the newest value.
+It does not need all intermediate values.
+Use a different protocol when each event is necessary.
+For example, use a queue for timed cues that the current state cannot fully describe.
 
-   `remoteStoreSnapshots` conflates updates while a consumer is busy. That is right for graphics —
-   a slow client needs the newest score, not every intermediate one. Use a different protocol when
-   every event matters (for example a queue of timed cues that the current state does not fully
-   describe).
+10. Subscribe from the frame with a selector.
 
-4. **Subscribe from the frame** with a selector:
+```tsx
+import { useRemoteStore } from "@strangecyan/vignette-frame/remote-store/client";
 
-   ```tsx
-   import { useRemoteStore } from "@strangecyan/vignette-frame/remote-store/client";
+const title = useRemoteStore(compositionStoreRef, (state) => state.context.title);
+```
 
-   const title = useRemoteStore(compositionStoreRef, (state) => state.context.title);
-   ```
+`EventSource` reconnects automatically.
+After a reconnection, the server sends the latest state again.
+The selector supplies a typed projection, but it does not compare values for equality.
+Each accepted snapshot notifies each subscriber.
+Add equality-aware selection for frequent updates to many independent frame components.
 
-   `EventSource` reconnects automatically and the server replay supplies the latest state after
-   reconnection. The selector gives typed projection but not equality-aware memoization: every
-   accepted snapshot notifies each subscriber. Add equality-aware selection if you send frequent
-   updates to many independent frame components.
+11. Handle hydration with a normal `Suspense` boundary.
+12. Put the consumer directly below the boundary.
+13. Use a transparent `null` fallback.
 
-5. **Handle hydration.** The hook suspends during server rendering and until the first SSE message.
-   Put the consumer directly below a normal `Suspense` boundary with a transparent (`null`)
-   fallback; the frame hydrator handles the expected server-to-client Suspense recovery. Stale or
-   loading UI must not cover programme video. See `frames/title.frame.tsx`.
+The hook suspends during server rendering and before the first SSE message.
+The frame hydrator handles the expected recovery from server `Suspense` to client `Suspense`.
+Loading or old UI must not cover program video.
+Refer to `frames/title.frame.tsx`.
 
-**Checklist when touching this path:** test initial replay, live update without frame reload,
-reconnect behavior, and unknown store IDs (return 404). Extend `tests/smoke.spec.ts` accordingly.
-In production, authenticate both the mutation and the state-stream endpoints — read-only does not
-mean non-sensitive — and configure proxy buffering and idle timeouts so SSE is delivered
-immediately and stays open.
+When you change this data path, test these conditions:
 
-## Recipe: add a control route
+- Test the first replay.
+- Test a live update without a frame reload.
+- Test reconnection.
+- Test an unknown store ID and make sure that it returns `404`.
+- Add the necessary tests to `tests/smoke.spec.ts`.
 
-Routes live in the chained Hono app in `worker.tsx`:
+In production, authenticate mutation endpoints and state-stream endpoints.
+Read-only data can contain sensitive information.
+Configure proxy buffering and idle timeouts.
+Make sure that the proxy sends SSE immediately and keeps the connection open.
 
-1. Add a zod event schema next to the store event it triggers (`state/composition-store.ts`).
-2. Add the route to the existing chained app with `sValidator` — **preserve the chained style**;
-   the exported `CompositionApi` type feeds `hono/client`, and breaking the chain breaks
-   end-to-end inference in `client/App.tsx`.
-3. Trigger the store event; persistence happens via the store subscription in `state/durable.ts`.
-4. Keep commands narrow and semantic (`title`, `mode`, a complete cue) — never expose generic
-   store writes.
+## Add a control route
 
-## The control client (studio pattern)
+Control routes are in the chained Hono application in `worker.tsx`.
 
-`client/App.tsx` combines two products: a control surface that mutates application state and a
-programme monitor that renders the compiled scene exactly as a runtime would. Create the runtime
-source once at module scope, then pass that stable function to `useCompositor`; calling
-`sseRuntimeSource("/api/runtime")` inline creates a new transport on every render, repeatedly
-restarts the compositor, and eventually causes React's maximum-update-depth error. Rules that keep
-it trustworthy:
+1. Add a zod event schema next to its store event in `state/composition-store.ts`.
+2. Add the route to the existing chained application with `sValidator`.
+3. Keep the chained code style.
+4. Trigger the store event.
+5. Let the store subscription in `state/durable.ts` persist the state.
+6. Use a narrow command that describes its function, such as `title`, `mode`, or a complete cue.
+7. Do not expose general store writes.
 
-- **The server store is the source of truth, never the preview.** Reopening the client or adding
-  a second operator must reproduce the current show.
-- **Keep the API typed end-to-end** through `hc<CompositionApi>` as described above.
-- **Drafts stay off-air.** Forms edit local state and send one complete cue on submit; immediate
-  controls (cuts, locks) may send small patches directly. Do not mutate programme output on every
-  keystroke.
-- **Design for operator confidence.** Every action needs pending, disabled, and error states, and
-  a pending guard against double cues. Surface `compositor.phase` and `compositor.revision` near
-  the preview so an operator can distinguish an intentional black frame from a stale compositor.
-- **Distinguish acknowledgements.** A successful control response means the server persisted the
-  command; a runtime revision means a composition update reached the preview; a source return
-  means external media is actually flowing. Expose these separately rather than one green badge.
-- **Preview with the same extensions as the destination runtime.** If you register a custom
-  source extension for OBS, register its DOM counterpart in the preview's `useCompositor` call, or
-  the preview will look healthy while the destination fails.
+The exported `CompositionApi` type supplies types to `hono/client`.
+If you break the chain, you also break end-to-end type inference in `client/App.tsx`.
 
-For larger productions: add auth and roles on every control command, an audit trail, conflict
-handling for concurrent operators (sequence numbers or expected revisions), and separate
-preview/programme buses with an explicit Take. This starter drives programme output directly,
-which is fine for a compact show but provides no rehearsal bus.
+## Control client
+
+`client/App.tsx` contains a control surface and a program monitor.
+The control surface changes application state.
+The program monitor renders the compiled scene in the same way as a runtime.
+
+Create the runtime source one time at module scope.
+Pass this stable function to `useCompositor`.
+Do not call `sseRuntimeSource("/api/runtime")` inline.
+An inline call makes a new transport during each render.
+Repeated new transports restart the compositor.
+They can cause the React maximum-update-depth error.
+
+Obey these rules:
+
+- Use the server store as the authoritative state.
+- Do not use the preview as the authoritative state.
+- A reopened client must show the current program state.
+- A second operator must also see the current program state.
+- Keep end-to-end API types through `hc<CompositionApi>`.
+- Keep draft values off air.
+- Let forms change local state.
+- Send one complete cue when the operator submits the form.
+- Immediate controls, such as cuts and locks, can send small patches directly.
+- Do not change program output for each keystroke.
+- Give each action pending, disabled, and error states.
+- Prevent a second cue while the first cue is pending.
+- Show `compositor.phase` and `compositor.revision` near the preview.
+- Let the operator identify a deliberate black frame and an old compositor state.
+- Show control responses, runtime revisions, and source returns as separate statuses.
+- A successful control response means that the server persisted the command.
+- A runtime revision means that a composition update reached the preview.
+- A source return means that external media is flowing.
+- Register the same source extensions in the preview and the destination runtime.
+- For a custom OBS source, register its DOM renderer in the preview `useCompositor` call.
+
+For a large production, add authentication and roles to each control command.
+Also add an audit trail and conflict handling for simultaneous operators.
+You can use sequence numbers or expected revisions for conflict handling.
+Use separate preview and program buses with an explicit Take operation.
+This starter controls program output directly and does not have a rehearsal bus.
 
 ## CLI preview and OBS
 
-The CLI is the default runtime tooling for this starter. Do not create an application-owned OBS
-process merely to connect the standard runtime SSE endpoint.
+Use the CLI as the standard runtime tool for this starter.
+Do not make an application-owned OBS process only to connect to the standard runtime SSE endpoint.
 
-With `pnpm dev` running, preview the compiled composition before opening OBS:
+Start `pnpm dev`.
+Then preview the compiled composition before you open OBS:
 
 ```sh
 pnpm exec vignette preview \
@@ -332,12 +419,15 @@ pnpm exec vignette preview \
   --name vignette-starter
 ```
 
-The command captures the first scene under `vignette-preview/`. Use `--scene <id>` for one named
-scene or `--all-scenes` for the whole composition. It renders live media and extension sources as
-labeled placeholders, so use it for layout and static-content inspection rather than return-feed
-health.
+The command saves the first scene in `vignette-preview/`.
+Use `--scene <id>` to save one named scene.
+Use `--all-scenes` to save all scenes.
+The command shows live media and extension sources as labeled placeholders.
+Use this command to examine layout and static content.
+Do not use it to examine return-feed status.
 
-For OBS, enable OBS WebSocket and run:
+Enable OBS WebSocket.
+Then run:
 
 ```sh
 pnpm exec vignette obs \
@@ -347,90 +437,132 @@ pnpm exec vignette obs \
   --url http://127.0.0.1:5173/api/runtime
 ```
 
-Omit `--password` when authentication is disabled. The command includes the standard built-in
-source codecs and official MoQ codec, reconnects through the library runtime behavior, and runs
-until `SIGINT` or `SIGTERM`. It deliberately does not expose health or readiness endpoints.
+If authentication is off, remove `--password`.
+The command includes the standard built-in source codecs and the official MoQ codec.
+The library runtime reconnects the command when necessary.
+The command runs until it receives `SIGINT` or `SIGTERM`.
+The command does not supply health or readiness endpoints.
 
-The library-enforced safety model still applies: only scenes and inputs named
-`vignette::<projectId>::...`, plus the registry scene, are managed. Everything else in OBS remains
-out of bounds. The `--project` value must match `COMPOSITION_PROJECT_NAME`.
+Only manage scenes and inputs with names below `vignette::<projectId>::`.
+The registry scene is also managed.
+Do not manage other OBS resources.
+The `--project` value must equal `COMPOSITION_PROJECT_ID` in `composition.tsx`.
 
-Escape hatch to an application-owned `OBSRuntime` only when the project concretely needs at least
-one capability the CLI does not provide:
+Use an application-owned `OBSRuntime` only if the project needs one of these functions:
 
-- project-specific OBS codecs or overrides to built-in codec settings;
-- a non-SSE transport, custom asset storage, or injected OBS transport;
-- structured `getStatus()`/`whenSettled()` integration, a health/readiness endpoint, or process
-  supervision contract;
-- application-specific retry, logging, metrics, or lifecycle integration.
+- Project-specific OBS codecs.
+- Changes to built-in codec settings.
+- A transport that does not use SSE.
+- Custom asset storage.
+- An injected OBS transport.
+- Structured `getStatus()` or `whenSettled()` integration.
+- A health endpoint, readiness endpoint, or process supervision contract.
+- Application-specific retry, logging, metrics, or lifecycle integration.
 
-When taking the escape hatch, keep the process thin and free of application logic. It should
-consume runtime messages, register only required extensions, expose errors/status, and dispose on
-shutdown; it must never read the application store or bypass the managed-namespace safety model.
+If you use an application-owned runtime, keep the process small.
+Do not put application logic in the process.
+Consume runtime messages and register only necessary extensions.
+Make errors and status available.
+Dispose of the runtime during shutdown.
+Do not read the application store.
+Do not bypass the managed-namespace safety rules.
 
-## Animating overlays (Motion for React)
+## Animate overlays
 
-When adding animated graphics, use the `motion` package via `motion/react` (not the older
-`framer-motion` name) and follow these rules:
+For animated graphics, use the `motion` package through `motion/react`.
+Do not use the old `framer-motion` package name.
 
-- Define one motion language — a single easing family (for example
-  `const broadcastEase = [0.16, 1, 0.3, 1] as const`) and a small duration scale — and apply
-  defaults once with `<MotionConfig transition={...}>` at the overlay root.
-- Drive animation from semantic show state, not per-component timers. Give `AnimatePresence`
-  children stable, meaningful keys; use `mode="wait"` so two full-screen treatments never overlap;
-  set `initial={false}` so a preview joining an already-running show does not replay entrances.
-- Choreograph groups with variants and `stagger()` instead of manual per-child delays. Keep
-  complete builds under about a second — long decorative sequences become operational latency.
-- Use tweens for predictable cue timing, springs for spatial continuity (`layoutId`), and short
-  keyframes for reactions. Avoid perpetual animation; constant motion competes with the programme.
-- Keep the frame transparent: animate children, never paint an opaque background on the root.
-  Prefer `opacity` and `transform`; test `layout`/`layoutId`, production fonts, and large blurs at
-  the real 1920x1080 canvas and target frame rate.
-- Test rapid consecutive cues and interrupted exits, not only the happy path.
+Obey these rules:
 
-Motion is time-based and live; it suits lower thirds and mode transitions. For a transition that
-must hit an exact full-cover frame and be reused in OBS, use a rendered asset instead (below).
+- Define one motion style with one easing family and a small duration scale.
+- For example, use `const broadcastEase = [0.16, 1, 0.3, 1] as const`.
+- Apply the default values one time with `<MotionConfig transition={...}>` at the overlay root.
+- Control animation with semantic show state.
+- Do not control animation with timers in each component.
+- Give `AnimatePresence` children stable keys that describe their function.
+- Use `mode="wait"` to prevent two full-screen graphics from overlapping.
+- Use `initial={false}` to prevent a connected preview from repeating entrance animations.
+- Use variants and `stagger()` to sequence groups.
+- Do not use a separate manual delay for each child.
+- Keep a complete entrance sequence shorter than approximately one second.
+- Use tweens when cue time must be predictable.
+- Use springs for spatial continuity with `layoutId`.
+- Use short keyframes for reactions.
+- Do not use continuous animation without a necessary program function.
+- Keep the frame transparent.
+- Animate child elements and do not put an opaque background on the root.
+- Prefer `opacity` and `transform` for animation.
+- Test `layout`, `layoutId`, production fonts, and large blurs on a 1920x1080 canvas.
+- Use the target frame rate for these tests.
+- Test cues that occur quickly one after another.
+- Test exits that another cue interrupts.
+
+Motion is live and depends on time.
+Use it for lower thirds and mode transitions.
+Some transitions must have an exact frame that fully covers the program.
+For these transitions, use a rendered asset that OBS can use again.
 
 ## Optional stinger transitions
 
-Stingers are deliberately not included in this starter. If a production needs one, create a
-separate animation/rendering workspace (Remotion is one option), render a transparent media asset,
-register that output through Vignette's asset manifest, and cue it with explicit application state.
-Verify transparent first/last frames, a fully opaque cut window, repeat playback, and alpha support
-in both DOM and OBS. Keep the rendering toolchain and generated masters out of the base starter.
+This starter does not include stinger transitions.
+If a production needs a stinger, make a separate workspace for animation rendering.
+Remotion is one possible tool.
+Render a transparent media asset.
+Register the output in the Vignette asset manifest.
+Use explicit application state to start the stinger.
 
-## Style and testing
+Verify these items:
 
-- TypeScript throughout, explicit `ReactElement` return types, `readonly` state shapes, and zod
-  schemas colocated with the store events they validate.
-- Tailwind for client UI; frames may use inline styles since they render in isolated documents.
-- Smoke tests run against the real built worker, frame, and asset routes — not mocked components.
-  When you add a feature on the state path, extend `apps/composition/tests/smoke.spec.ts` to cover
-  replay, live mutation without reload, and error cases.
-- Give test-relevant frame elements `data-testid` attributes (see `data-testid="live-title"`).
+- The first and last frames are transparent.
+- The cut interval is fully opaque.
+- Repeated playback operates correctly.
+- The DOM and OBS support the asset alpha channel.
 
-## One-time setup: renaming a fresh copy
+Do not put the rendering tools or generated master files in the base starter.
 
-A template copy (GitHub "Use this template" or `degit`) arrives verbatim; nothing substitutes
-project names. Before feature work in a new copy, choose an application slug, workspace package
-scope, and Vignette project name, then:
+## Code style and tests
 
-1. Replace `cloudflare-vignette-starter` in the root `package.json` and
-   `apps/composition/wrangler.jsonc`. The Wrangler name must be unique within the target
-   Cloudflare account so deploying one generated project cannot overwrite another.
-2. Replace `cloudflare_vignette_starter` in composition scripts, `playwright.config.ts`, and
-   `vite.config.ts` with the underscore-normalized Wrangler environment name emitted for the new
-   application slug. Keep these values in sync with the generated
-   `dist/<environment>/wrangler.json` path.
-3. Replace the `@vignette-starter` package scope in every workspace `package.json` and TypeScript
-   import. Internal dependency names and root `--filter` commands must match the renamed packages.
-4. Change `COMPOSITION_PROJECT_NAME` in `packages/composition-config/src/index.ts`, then use the same
-   value for `vignette obs --project`. Do not introduce separate copies. This name determines the
-   project's managed OBS namespace.
-5. Run `pnpm install` to refresh `pnpm-lock.yaml`, then run `pnpm typecheck` and
-   `pnpm test:smoke` before making further changes.
+- Use TypeScript in all source files.
+- Specify `ReactElement` return types.
+- Use `readonly` state shapes.
+- Put zod schemas next to the store events that they validate.
+- Use Tailwind for the client user interface.
+- Frames can use inline styles because they render in separate documents.
+- Run smoke tests against the built Worker and the real frame and asset routes.
+- Do not replace these routes with mock components in smoke tests.
+- For a state-path feature, add replay, live mutation, and error tests to `apps/composition/tests/smoke.spec.ts`.
+- Make sure that the live mutation test does not reload the frame.
+- Give testable frame elements a `data-testid` attribute.
+- Refer to `data-testid="live-title"` for an example.
 
-Use `rg 'cloudflare[-_]vignette[-_]starter|@vignette-starter|vignette-starter'` after renaming to
-catch stale starter identifiers. Matches in explanatory documentation may remain when intentional;
-runtime configuration, package manifests, imports, scripts, and the lockfile must use the new
-names.
+## Rename a new copy
+
+A new template copy contains the original project names.
+GitHub "Use this template" and `degit` do not replace these names.
+Before feature work, select an application slug, workspace package scope, and Vignette project name.
+
+Then use this procedure:
+
+1. Replace `cloudflare-vignette-starter` in the root `package.json` and `apps/composition/wrangler.jsonc`.
+2. Use a Wrangler name that is unique in the target Cloudflare account.
+3. Make sure that a deployment cannot replace a different generated project.
+4. Replace `cloudflare_vignette_starter` in the composition scripts, `playwright.config.ts`, and `vite.config.ts`.
+5. Use the underscore-normalized Wrangler environment name for the new application slug.
+6. Keep these values equal to the environment in `dist/<environment>/wrangler.json`.
+7. Replace the `@vignette-starter` package scope in each workspace `package.json` and TypeScript import.
+8. Make internal dependency names and root `--filter` commands agree with the new package names.
+9. Change `COMPOSITION_PROJECT_ID` in `apps/composition/src/composition.tsx`.
+10. Use the same value for `vignette obs --project` in the root `obs` script.
+11. Make sure that this value identifies the managed OBS namespace for the project.
+12. Run `pnpm install` to update `pnpm-lock.yaml`.
+13. Run `pnpm typecheck` and `pnpm test:smoke` before more changes.
+
+After the rename, run this search:
+
+```sh
+rg 'cloudflare[-_]vignette[-_]starter|@vignette-starter|vignette-starter'
+```
+
+Examine each result for an old starter identifier.
+An explanatory document can keep an intentional match.
+Runtime configuration, package manifests, imports, scripts, and the lockfile must use the new names.

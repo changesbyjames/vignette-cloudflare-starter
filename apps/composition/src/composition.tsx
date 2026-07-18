@@ -1,12 +1,11 @@
 import { layerId, projectId, sceneId, sourceId, type LayoutStyle } from "@strangecyan/vignette-core";
 import { View } from "@strangecyan/vignette-frame";
 import { Broadcast, ColorSource, Layer, Scene, Sources } from "@strangecyan/vignette";
-import { COMPOSITION_PROJECT_NAME } from "@vignette-starter/composition-config";
 import type { ReactElement } from "react";
 
 import { titleFrame } from "./frames/title.frame";
 
-export const COMPOSITION_PROJECT_ID = projectId(COMPOSITION_PROJECT_NAME);
+export const COMPOSITION_PROJECT_ID = projectId("vignette-starter");
 export const COMPOSITION_CANVAS = { width: 1920, height: 1080, frameRate: 60 } as const;
 
 const FILL: LayoutStyle = { position: "absolute", inset: 0, width: "100%", height: "100%" };
