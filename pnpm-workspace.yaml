@@ -8,9 +8,11 @@ allowBuilds:
   workerd: true
 
 minimumReleaseAgeExclude:
-  - '@jsr/cbj__vignette-core@0.3.4'
-  - '@jsr/cbj__vignette-frame@0.3.4'
-  - '@jsr/cbj__vignette-target-dom@0.3.4'
-  - '@jsr/cbj__vignette-target-obs@0.3.4'
-  - '@jsr/cbj__vignette-vite@0.3.4'
-  - '@jsr/cbj__vignette@0.3.4'
+  - '@strangecyan/vignette-cli@0.4.1'
+  - '@strangecyan/vignette-core@0.4.1'
+  - '@strangecyan/vignette-frame@0.4.1'
+  - '@strangecyan/vignette-moq@0.4.1'
+  - '@strangecyan/vignette-target-dom@0.4.1'
+  - '@strangecyan/vignette-target-obs@0.4.1'
+  - '@strangecyan/vignette-vite@0.4.1'
+  - '@strangecyan/vignette@0.4.1'

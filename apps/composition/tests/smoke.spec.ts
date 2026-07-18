@@ -1,6 +1,17 @@
 import { expect, test } from "@playwright/test";
 import { readdir } from "node:fs/promises";
 
+test("loads the control client without uncaught render errors", async ({ page }) => {
+  const errors: Error[] = [];
+  page.on("pageerror", (error) => errors.push(error));
+
+  await page.goto("/");
+  await expect(page.getByTestId("stage")).toBeVisible();
+  await expect(page.getByText(/rev [1-9]\d*/u)).toBeVisible();
+
+  expect(errors).toEqual([]);
+});
+
 test("serves frames before Durable Object state and provides read-your-writes", async ({
   page,
   request,

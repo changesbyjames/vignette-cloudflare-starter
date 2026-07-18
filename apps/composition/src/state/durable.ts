@@ -19,7 +19,12 @@ export async function restoreCompositionStore(
   storage: DurableObjectStorage,
 ): Promise<CompositionStore> {
   const persisted = await storage.get<CompositionState>(STATE_KEY);
-  const store = createCompositionStore(persisted ?? defaultCompositionState());
+  const fallback = defaultCompositionState();
+  const store = createCompositionStore(
+    persisted === undefined
+      ? fallback
+      : { title: persisted.title, updatedAt: persisted.updatedAt },
+  );
   store.subscribe((snapshot) => {
     void storage.put(STATE_KEY, snapshot.context);
   });

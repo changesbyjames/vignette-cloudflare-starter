@@ -12,8 +12,11 @@
     "build": "corepack pnpm --filter @vignette-starter/composition build",
     "deploy": "corepack pnpm --filter @vignette-starter/composition deploy",
     "dev": "corepack pnpm --filter @vignette-starter/composition dev",
-    "obs": "corepack pnpm --filter @vignette-starter/obs-runtime dev",
+    "obs": "corepack pnpm exec vignette obs --project vignette-starter --obs-url ws://127.0.0.1:4455 --url http://127.0.0.1:5173/api/runtime",
     "test:smoke": "corepack pnpm --filter @vignette-starter/composition test:smoke",
     "typecheck": "corepack pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@strangecyan/vignette-cli": "0.4.1"
   }
 }

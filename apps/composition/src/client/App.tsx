@@ -1,10 +1,11 @@
-import { sseRuntimeSource, useCompositor } from "@cbj/vignette-target-dom/react";
+import { sseRuntimeSource, useCompositor } from "@strangecyan/vignette-target-dom/react";
 import { hc, type InferResponseType } from "hono/client";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
 import type { CompositionApi } from "../worker";
 
 const client = hc<CompositionApi>("/");
+const runtimeSource = sseRuntimeSource("/api/runtime");
 type CompositionSnapshot = InferResponseType<typeof client.api.state.$get>;
 
 export function App(): ReactElement {
@@ -14,7 +15,7 @@ export function App(): ReactElement {
   const [pending, setPending] = useState(false);
   const [stageRef, compositor] = useCompositor({
     sceneId: "main",
-    transport: sseRuntimeSource("/api/runtime"),
+    transport: runtimeSource,
     onError: (cause) => setError(cause.message),
   });
 

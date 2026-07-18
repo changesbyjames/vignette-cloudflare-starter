@@ -1,17 +1,16 @@
 # Cloudflare Vignette starter
 
 A minimal pnpm workspace for a React-authored Vignette composition hosted by a Cloudflare Worker.
-A Durable Object persists composition state and publishes runtime updates over SSE. A separate Node
-runtime consumes those updates and applies them to OBS.
+A Durable Object persists composition state and publishes runtime updates over SSE. The Vignette
+CLI previews compiled scenes and applies the stream to OBS.
 
 ## Workspace
 
 ```text
 apps/
   composition/        Cloudflare Worker, Durable Object, frame, and browser client
-  obs-runtime/        Separate Node process that connects the composition to OBS
 packages/
-  composition-config/ Shared project identity used by both runtimes
+  composition-config/ Shared project identity
 ```
 
 The example composition has one color source, one scene, and one generated title frame. Its single
@@ -40,29 +39,54 @@ The starter requires Node.js 22 or newer and pnpm 11. Enable Corepack once if ne
 ```sh
 corepack enable
 pnpm install
+pnpm exec playwright install chromium
 pnpm dev
 ```
 
 The browser client and runtime API are available at `http://127.0.0.1:5173`.
 
-## Run the OBS runtime
+## Preview the composition
 
-Enable OBS WebSocket, then configure the separate runtime from `apps/obs-runtime/.env.example`:
+With `pnpm dev` running, capture the first compiled scene as a PNG:
 
 ```sh
-OBS_URL=ws://127.0.0.1:4455 \
-OBS_PASSWORD='your-obs-websocket-password' \
-COMPOSITION_RUNTIME_URL=http://127.0.0.1:5173/api/runtime \
-pnpm obs
+pnpm exec vignette preview \
+  --snapshot http://127.0.0.1:5173/api/runtime \
+  --name vignette-starter
 ```
 
-Health information is available at `http://127.0.0.1:4174/health`. `OBS_RUNTIME_PORT` changes that
-port.
+The file is written under `vignette-preview/`. Use `--scene <id>` to select a scene or
+`--all-scenes` to capture every scene.
+
+## Run in OBS
+
+Enable OBS WebSocket, keep `pnpm dev` running, and start the standard Vignette OBS runtime:
+
+```sh
+pnpm exec vignette obs \
+  --project vignette-starter \
+  --obs-url ws://127.0.0.1:4455 \
+  --password 'your-obs-websocket-password' \
+  --url http://127.0.0.1:5173/api/runtime
+```
+
+Omit `--password` when OBS WebSocket authentication is disabled. The command runs until interrupted
+and intentionally has no health endpoint or readiness API.
+
+For the starter defaults, use the root script:
+
+```sh
+pnpm obs
+# With authentication:
+pnpm obs -- --password 'your-obs-websocket-password'
+```
 
 ## Commands
 
 - `pnpm dev`: build and run the Cloudflare composition locally.
-- `pnpm obs`: run the separate Node OBS runtime.
+- `pnpm exec vignette preview ...`: capture compiled scenes as PNGs.
+- `pnpm exec vignette obs ...`: stream the composition into OBS.
+- `pnpm obs`: run the OBS CLI with this starter's project and local URLs.
 - `pnpm typecheck`: typecheck every workspace package.
 - `pnpm build`: build the Worker and browser assets.
 - `pnpm test:smoke`: test frame serving, state, SSE replay, and mutation.
@@ -75,13 +99,13 @@ port.
 - The Durable Object restores an XState store, creates the scene store and composer root, and renders
   React once per instance.
 - Hono exposes typed state, mutation, and SSE runtime routes.
-- The browser uses the DOM compositor; the separate Node package uses the OBS runtime.
+- The browser uses the DOM compositor; the Vignette CLI supplies the default OBS runtime.
 - Only serializable application state is persisted. React and Vignette runtime objects are rebuilt
   when a Durable Object instance starts.
 
 Start customization in `apps/composition/src/composition.tsx` and
 `apps/composition/src/state/composition-store.ts`. Keep the shared project name in
-`packages/composition-config/src/index.ts` consistent across runtimes.
+`packages/composition-config/src/index.ts` consistent with the `vignette obs --project` argument.
 
 ## License
 

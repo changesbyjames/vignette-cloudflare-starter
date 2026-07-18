@@ -8,5 +8,6 @@ dist
 node_modules
 playwright-report
 test-results
+vignette-preview
 *.tsbuildinfo
 *.log

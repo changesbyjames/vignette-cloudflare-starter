@@ -1,5 +1,5 @@
-import { frame } from "@cbj/vignette-frame";
-import { useRemoteStore } from "@cbj/vignette-frame/remote-store/client";
+import { frame } from "@strangecyan/vignette-frame";
+import { useRemoteStore } from "@strangecyan/vignette-frame/remote-store/client";
 import { Suspense, type ReactElement } from "react";
 import { z } from "zod";
 

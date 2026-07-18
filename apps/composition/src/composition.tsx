@@ -1,6 +1,6 @@
-import { layerId, projectId, sceneId, sourceId, type LayoutStyle } from "@cbj/vignette-core";
-import { View } from "@cbj/vignette-frame";
-import { Broadcast, ColorSource, Layer, Scene, Sources } from "@cbj/vignette";
+import { layerId, projectId, sceneId, sourceId, type LayoutStyle } from "@strangecyan/vignette-core";
+import { View } from "@strangecyan/vignette-frame";
+import { Broadcast, ColorSource, Layer, Scene, Sources } from "@strangecyan/vignette";
 import { COMPOSITION_PROJECT_NAME } from "@vignette-starter/composition-config";
 import type { ReactElement } from "react";
 

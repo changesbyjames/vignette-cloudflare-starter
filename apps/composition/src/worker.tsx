@@ -25,23 +25,19 @@
  *    (`root.settled()`, `root.messages()`), and app store snapshots stream directly to frames.
  */
 import { sValidator } from "@hono/standard-validator";
-import { toSseEvent } from "@cbj/vignette-core/sse";
-import { createSceneStore, SceneProvider } from "@cbj/vignette-frame";
-import { encodeRemoteStoreSnapshot } from "@cbj/vignette-frame/remote-store";
-import { remoteStoreSnapshots } from "@cbj/vignette-frame/remote-store/server";
-import { createFrameRequestHandler } from "@cbj/vignette-frame/server";
-import { frames } from "virtual:vignette/frames";
+import { toSseEvent } from "@strangecyan/vignette-core/sse";
+import { createSceneStore, SceneProvider } from "@strangecyan/vignette-frame";
+import { encodeRemoteStoreSnapshot } from "@strangecyan/vignette-frame/remote-store";
+import { remoteStoreSnapshots } from "@strangecyan/vignette-frame/remote-store/server";
+import { createFrameRequestHandler } from "@strangecyan/vignette-frame/server";
 import { DurableObject } from "cloudflare:workers";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import { frames } from "virtual:vignette/frames";
 
-import { Composition, createCompositionRoot, type CompositionRoot } from "./composition-runtime";
+import { Composition, createCompositionRoot, type CompositionRoot } from "./runtime";
+import { setTitleEvent, type CompositionState, type CompositionStore } from "./state/composition-store";
 import { restoreCompositionStore } from "./state/durable";
-import {
-  setTitleEvent,
-  type CompositionState,
-  type CompositionStore,
-} from "./state/composition-store";
 import { compositionStoreRef } from "./state/store-ref";
 
 interface Env {
@@ -62,7 +58,9 @@ interface ApiEnv {
 /**
  * Defined as a chained Hono app so the browser client can infer route inputs and responses.
  */
-function createCompositionApi(boot: (origin: string) => Promise<CompositionServices>) {
+function createCompositionApi(
+  boot: (origin: string) => Promise<CompositionServices>,
+) {
   return new Hono<ApiEnv>()
     .use(async (c, next) => {
       const origin = c.req.header("X-Vignette-Origin") ?? new URL(c.req.url).origin;
@@ -123,7 +121,7 @@ export class CompositionDurableObject extends DurableObject<Env> {
     this.#services ??= (async () => {
       const store = await restoreCompositionStore(this.ctx.storage);
       const scene = createSceneStore({ origin });
-      const root = createCompositionRoot((error) =>
+      const root = createCompositionRoot(origin, (error) =>
         console.error("Vignette composer error", error),
       );
       // The only composition render call in the program. Dynamic scene configuration arrives

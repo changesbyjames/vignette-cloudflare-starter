@@ -13,7 +13,10 @@ export const setTitleEvent = z.object({
 export type SetTitleEvent = z.infer<typeof setTitleEvent>;
 
 export function defaultCompositionState(): CompositionState {
-  return { title: "Hello, Vignette!", updatedAt: new Date().toISOString() };
+  return {
+    title: "Hello, Vignette!",
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function createCompositionStore(initial: CompositionState) {
@@ -21,6 +24,7 @@ export function createCompositionStore(initial: CompositionState) {
     context: initial,
     on: {
       setTitle: (_context, event: SetTitleEvent): CompositionState => ({
+        ..._context,
         title: event.title,
         updatedAt: new Date().toISOString(),
       }),

@@ -1,4 +1,4 @@
-import { defineRemoteStore } from "@cbj/vignette-frame/remote-store";
+import { defineRemoteStore } from "@strangecyan/vignette-frame/remote-store";
 import type { CompositionStore } from "./composition-store";
 
 export const compositionStoreRef = defineRemoteStore<CompositionStore>({
