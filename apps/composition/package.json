@@ -22,7 +22,6 @@
     "hono": "4.12.30",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "yoga-wasm-web": "0.3.3",
     "zod": "4.4.3"
   },
   "devDependencies": {

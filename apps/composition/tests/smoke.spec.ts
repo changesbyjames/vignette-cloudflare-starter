@@ -35,7 +35,7 @@ test("serves frames before Durable Object state and provides read-your-writes", 
   await page.goto("/api/state");
   const replay = await page.evaluate(async () => {
     const controller = new AbortController();
-    const response = await fetch("/api/runtime", { signal: controller.signal });
+    const response = await fetch("/api/stream", { signal: controller.signal });
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
     let text = "";
