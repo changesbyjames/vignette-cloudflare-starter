@@ -1,21 +1,12 @@
 import { frame } from "@strangecyan/vignette-frame";
 import { useRemoteStore } from "@strangecyan/vignette-frame/remote-store/client";
-import { Suspense, type ReactElement } from "react";
-import { z } from "zod";
+import type { ReactElement } from "react";
 
 import { compositionStoreRef } from "../state/store-ref";
 
-const titleParams = z.object({});
-
+// Frames render beneath a root `<Suspense fallback={null}>`, so the transparent frame stays empty
+// until the first store snapshot arrives instead of covering program video with a loading state.
 function Title(): ReactElement {
-  return (
-    <Suspense fallback={null}>
-      <LiveTitle />
-    </Suspense>
-  );
-}
-
-function LiveTitle(): ReactElement {
   const title = useRemoteStore(compositionStoreRef, (state) => state.context.title);
 
   return (
@@ -37,4 +28,4 @@ function LiveTitle(): ReactElement {
   );
 }
 
-export const titleFrame = frame({ params: titleParams, view: Title });
+export const titleFrame = frame({ view: Title });

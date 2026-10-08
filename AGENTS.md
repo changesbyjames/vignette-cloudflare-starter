@@ -33,34 +33,36 @@ A Cloudflare Worker hosts the composition.
 Vignette includes the `@strangecyan/vignette*` packages.
 Vignette lets React describe broadcast graphics as declarative data.
 This data defines sources, scenes, layers, and boxes that use Yoga layout.
-Separate runtimes use this data to make the graphics.
-The browser uses a DOM compositor.
-OBS uses a runtime through obs-websocket.
+Separate target runtimes use this data to make the graphics.
+The browser renders it on a DOM stage.
+OBS uses a target runtime through obs-websocket.
 
 This starter has these parts:
 
 - A **Durable Object** owns the application state.
 - The Durable Object renders the React composition one time.
-- The Durable Object sends compiled runtime updates through SSE.
+- The Durable Object sends the composer stream of compiled updates through SSE.
 - The **Vignette CLI** uses the updates for PNG previews and OBS convergence.
 - **OBS convergence** makes managed OBS resources agree with the compiled composition.
-- The **browser client** uses the DOM compositor to render the same composition.
+- The **browser client** uses the DOM stage to render the same composition.
 - The browser client also gives controls to the operator.
 - **Frames** are server-rendered overlay documents in `*.frame.tsx` files.
 - The Worker serves frames at the edge.
 - Frames receive live data through a separate SSE feed.
 
 ```text
-operator controls --HTTP--> application store (Durable Object) --+--> composition
-                            |                                    |        |
-                            +--SSE /api/store/:ref--> frames ----+        +--SSE /api/runtime--> browser / OBS runtime
+operator controls --HTTP--> application store (Durable Object)
+                              |
+                              +--SSE /__vignette/store/composition--> frames
+                                                                        ^ placed by <View>
+composition (Durable Object, rendered once) --SSE /api/stream--> browser / OBS runtime
 ```
 
 ### Keep the two SSE feeds separate
 
-- `/api/runtime` sends compiled Vignette setup data and composition updates to the DOM and OBS runtimes.
+- `/api/stream` sends the composer stream (setup data and composition updates) to the DOM and OBS runtimes.
 - This feed defines the sources, scenes, layers, and their positions.
-- `/api/store/:ref` sends serializable application state to hydrated React frames.
+- `/__vignette/store/composition` sends serializable application state to hydrated React frames.
 - This feed contains data such as titles, scores, and cues.
 
 This separation lets a frame respond to show data without a new composition build.
@@ -76,8 +78,8 @@ If the marker does not stay, the change probably connected the two feeds incorre
 | Command | Function |
 | --- | --- |
 | `pnpm dev` | Build and run the local composition at `http://127.0.0.1:5173`. |
-| `pnpm exec vignette preview --snapshot http://127.0.0.1:5173/api/runtime --name vignette-starter` | Save the first compiled scene as a PNG in `vignette-preview/`. |
-| `pnpm exec vignette obs --project vignette-starter --obs-url ws://127.0.0.1:4455 --password <password> --url http://127.0.0.1:5173/api/runtime` | Run the standard OBS runtime until an interrupt occurs. |
+| `pnpm exec vignette preview --snapshot http://127.0.0.1:5173/api/stream --name vignette-starter` | Save the first compiled scene as a PNG in `vignette-preview/`. |
+| `pnpm exec vignette obs --project vignette-starter --obs-url ws://127.0.0.1:4455 --password <password> --url http://127.0.0.1:5173/api/stream` | Run the standard OBS runtime until an interrupt occurs. |
 | `pnpm obs` | Run the OBS CLI command with the starter default values. |
 | `pnpm typecheck` | Type-check all workspace packages. |
 | `pnpm build` | Build the Worker and the browser assets. |
@@ -115,15 +117,17 @@ Use these Vignette terms with the specified meanings:
 - The browser hydrates the frame.
 - A **compiled snapshot** is the immutable, target-neutral output of the composer.
 - Each compiled snapshot has a revision that always increases.
+- Snapshots carry root-relative frame and asset URLs.
+- Each target resolves these URLs against its own base URL, so the composer never needs its public origin.
 - Runtimes use snapshots and do not receive React.
-- The **runtime message stream** is a closed union of `setup`, `update`, and `event` messages.
-- A `setup` message contains the asset manifest.
+- The **composer stream** is a closed union of `setup`, `update`, and `event` messages.
+- A `setup` message contains the project ID, the asset manifest, and the extension source kinds.
 - An `update` message contains the complete required snapshot.
 - An `event` message contains a command that occurs one time.
 
 Use these identity and layout rules:
 
-- Identify remote resources with stable, explicit `sceneId`, `sourceId`, and `layerId` values.
+- Identify remote resources with stable, explicit string IDs: `id` on sources, scenes, layers, and views, and `sourceId` on layers.
 - Do not identify remote resources with React keys.
 - React keys only help React reconcile elements.
 - Yoga controls the layout.
@@ -134,12 +138,11 @@ Use these identity and layout rules:
 
 | Function | Start file or command |
 | --- | --- |
-| Composition sources, scenes, and layers | `apps/composition/src/composition.tsx` |
-| Composer root, canvas, assets, and Yoga | `apps/composition/src/composition-runtime.ts` |
+| Composition definition: project ID, canvas, sources, scenes, and layers | `apps/composition/src/composition.tsx` |
 | Application state with @xstate/store and zod | `apps/composition/src/state/composition-store.ts` |
 | Durable Object persistence | `apps/composition/src/state/durable.ts` |
 | Typed remote store reference | `apps/composition/src/state/store-ref.ts` |
-| Worker, API routes, and Durable Object | `apps/composition/src/worker.tsx` |
+| Worker, API routes, composer root, and Durable Object | `apps/composition/src/worker.tsx` |
 | Overlay frame | `apps/composition/src/frames/title.frame.tsx` |
 | Control client and program preview | `apps/composition/src/client/App.tsx` |
 | PNG preview and standard OBS runtime | `pnpm exec vignette preview ...` and `pnpm exec vignette obs ...` |
@@ -147,8 +150,9 @@ Use these identity and layout rules:
 | Vite plugins | `apps/composition/vite.config.ts` |
 | Worker name, Durable Object binding, and routes | `apps/composition/wrangler.jsonc` |
 
-Keep `COMPOSITION_PROJECT_ID` in `composition.tsx` equal to the `vignette obs --project` value in the root script.
+Keep the `id` passed to `defineComposition` in `composition.tsx` equal to the `vignette obs --project` value in the root script.
 This value identifies the OBS resources that the project manages.
+The setup message carries it, and the OBS runtime refuses a stream for a different project.
 Do not add a different project ID to scripts or documentation.
 
 ## Architecture rules
@@ -159,20 +163,21 @@ Do not add a different project ID to scripts or documentation.
    Add a version when you change the persisted data shape.
 
 2. **Render the composition one time for each Durable Object instance.**
-   Send dynamic configuration to React through `SceneProvider` and application state.
+   Create the root with `createComposerRoot(composition, { assets, onError })` and call `root.render()` once.
    Do not call `root.render` again for a state change.
+   The composer does not need the request origin because snapshot URLs are root-relative.
 
 3. **Keep frames stateless at the edge.**
    The Vite plugin finds `*.frame.tsx` files.
    The Worker serves these files without starting the Durable Object.
-   Frames must subscribe to `/api/store/:ref` for live data.
+   Frames must subscribe to the remote store at `compositionStoreRef.url` for live data.
    Frames must not import a server-side store.
    Both server rendering and browser hydration import frame modules.
    Thus, frame modules must be safe for the browser.
 
 4. **Let the platform control the transport and the library control the messages.**
-   `root.messages(signal)` supplies runtime messages.
-   `toSseEvent` changes these messages to the SSE format.
+   `root.messages(signal)` supplies the composer stream.
+   `toSseEvent` changes these stream messages to the SSE format.
    To replace SSE with a WebSocket or queue, change `worker.tsx`.
    Do not make this transport change in the library.
 
@@ -196,27 +201,29 @@ Do not add a different project ID to scripts or documentation.
 ## Library imports
 
 All Vignette packages use the same version.
-The current version is `0.4.1`.
+Find the current version in `apps/composition/package.json`.
 Import the listed items from these paths.
 Do not make a replacement for a bridge that the library supplies.
 
 | Import path | Exports used in this project |
 | --- | --- |
-| `@strangecyan/vignette` | `Broadcast`, `Sources`, `Scene`, `Layer`, `Box`, `SceneLayer`, `ColorSource`, `ImageSource`, `MediaSource`, `BrowserSource`, `createComposerRoot` |
-| `@strangecyan/vignette-core` | `projectId`, `sceneId`, `sourceId`, `layerId`, `asset`, `LayoutStyle`, `deepFreeze` |
+| `@strangecyan/vignette` | `defineComposition`, `createComposerRoot`, `compile`, `fill`, `Broadcast`, `Sources`, `Scene`, `Layer`, `Box`, `ColorSource`, `ImageSource`, `MediaSource`, `BrowserSource`, `asset`, and authoring types such as `LayoutStyle` |
 | `@strangecyan/vignette-core/sse` | `toSseEvent` formats `root.messages()` output for an SSE writer. |
-| `@strangecyan/vignette-core/runtime` | `consumeRuntimeMessages` applies a message stream to a runtime. |
-| `@strangecyan/vignette-core/layout-yoga` | `yogaLayoutEngine` supplies the Yoga layout engine to the composer root. |
-| `@strangecyan/vignette-frame` | `frame`, `View`, `SceneProvider`, `createSceneStore` |
+| `@strangecyan/vignette-core/stream` | `consumeStream` applies a composer stream to a target runtime. |
+| `@strangecyan/vignette-frame` | `frame`, `View` |
 | `@strangecyan/vignette-frame/remote-store` | `defineRemoteStore`, `encodeRemoteStoreSnapshot` |
 | `@strangecyan/vignette-frame/remote-store/server` | `remoteStoreSnapshots` |
 | `@strangecyan/vignette-frame/remote-store/client` | `useRemoteStore` |
 | `@strangecyan/vignette-frame/server` | `createFrameRequestHandler` |
-| `@strangecyan/vignette-target-dom/react` | `useCompositor`, `sseRuntimeSource` for the browser |
+| `@strangecyan/vignette-target-dom/react` | `useStage`, `sseStream` for the browser |
 | `@strangecyan/vignette-cli` | `vignette preview` and `vignette obs` commands for Node |
 | `@strangecyan/vignette-target-obs` | `OBSRuntime`, codecs, and transports for a custom runtime |
-| `@strangecyan/vignette-vite` | `vignette()` Vite plugin for frame discovery and asset manifests |
+| `@strangecyan/vignette-vite` | `vignette()` Vite plugin for frame discovery, asset manifests, and React and Yoga Vite defaults |
 | `virtual:vignette/frames`, `virtual:vignette/assets` | Generated `frames` and `assets` manifests from the Vite plugin |
+
+The composer root loads Yoga itself.
+In the Worker build, the `workerd` export condition selects a precompiled `yoga.wasm`.
+Do not add Yoga aliases, `resolveId` plugins, or manual `dedupe` and `optimizeDeps` settings.
 
 `useRemoteStore` and its related functions are part of the library.
 Do not make a `lib/remote-store` bridge.
@@ -224,13 +231,14 @@ Old examples can contain this bridge because they were made before the library i
 
 A custom source extension has three separate parts:
 
-- Register a source module on the composer root.
-- Register a DOM renderer on `DOMRuntime` or `useCompositor`.
-- Register an OBS codec on `OBSRuntime`.
+- List the source module in `defineComposition({ extensions: [...] })`.
+- Register a DOM renderer through the `extensions` option of `useStage` or `DOMRuntime`.
+- Register an OBS codec on `OBSRuntime`, or load it in the CLI with `--extension <module>`.
 
-The CLI registers the built-in codecs and the official MoQ codec.
-The CLI does not register project-specific extensions.
-Therefore, a custom OBS source requires a custom runtime.
+The setup message advertises the extension source kinds.
+A target runtime refuses a stream when a required codec or renderer is missing.
+The CLI bundles no extension codecs.
+For example, MoQ sources require `vignette obs --extension @strangecyan/vignette-moq/obs`.
 Also obey the preview parity rule in the [Control client](#control-client) section.
 
 ## Change the composition
@@ -239,8 +247,8 @@ Make structural changes in `apps/composition/src/composition.tsx`.
 Structural changes include new sources, scenes, layers, and layout.
 
 1. Declare reusable sources under `<Sources>`.
-2. Give each source an explicit `sourceId`.
-3. Put sources in `<Scene id={...}>` with `<Layer id={...} sourceId={...}>`.
+2. Give each source an explicit string `id`.
+3. Put sources in `<Scene id="...">` with `<Layer id="..." sourceId="...">`.
 4. Use `<Box>` for Yoga layout containers.
 5. Do not use boxes to make remote objects.
 6. For image or media sources, refer to files with `asset(...)`.
@@ -248,7 +256,12 @@ Structural changes include new sources, scenes, layers, and layout.
 8. Do not write public asset URLs manually.
 9. Make sure that both runtimes resolve the same content-versioned file.
 10. For a typed overlay document, define a frame.
-11. Put the frame in `<View>` below `SceneProvider`.
+11. Place the frame with `<View id="..." source={...}>`.
+12. Omit `params` for a frame without parameters.
+13. Omit `viewport` to render the frame at the laid-out size of the view.
+
+A `<ColorSource>` without `size` takes the canvas size.
+Use the `fill` layout preset for layers and views that cover their parent.
 
 The composition describes structure.
 Do not render the composition again to change content such as a title or score.
@@ -270,7 +283,7 @@ The complete data path is:
 
 ```text
 POST /api/title -> validate -> store.trigger.setTitle -> persist context
-  -> SSE /api/store/composition -> useRemoteStore(...) -> render in the existing frame
+  -> SSE /__vignette/store/composition -> useRemoteStore(...) -> render in the existing frame
 ```
 
 Use this procedure:
@@ -280,18 +293,18 @@ Use this procedure:
 3. Validate events with zod.
 4. Keep the state shape serializable because the Durable Object persists it.
 5. Give the store a typed reference in `state/store-ref.ts`.
-6. Specify a stable ID, a URL, and a phantom type in the reference.
+6. Specify a stable ID and a phantom type in the reference.
+   The library derives the URL `/__vignette/store/<id>` from the ID.
 
 ```ts
 import { defineRemoteStore } from "@strangecyan/vignette-frame/remote-store";
 
-export const compositionStoreRef = defineRemoteStore<CompositionStore>({
-  id: "composition",
-  url: "/api/store/composition",
-});
+export const compositionStoreRef = defineRemoteStore<CompositionStore>({ id: "composition" });
 ```
 
-7. Stream snapshots from the server in `worker.tsx`.
+7. Stream snapshots from the server at `compositionStoreRef.url` in `worker.tsx`.
+   The route serves exactly one store, so it does not check the ID.
+   The Worker sends this path to the Durable Object before the stateless `/__vignette/*` frame route.
 8. Send the current snapshot immediately when a request starts.
 9. Send updates until the request ends.
 
@@ -299,11 +312,13 @@ export const compositionStoreRef = defineRemoteStore<CompositionStore>({
 import { encodeRemoteStoreSnapshot } from "@strangecyan/vignette-frame/remote-store";
 import { remoteStoreSnapshots } from "@strangecyan/vignette-frame/remote-store/server";
 
-return streamSSE(c, async (stream) => {
-  for await (const snapshot of remoteStoreSnapshots(store, c.req.raw.signal)) {
-    await stream.writeSSE({ data: encodeRemoteStoreSnapshot(snapshot) });
-  }
-});
+api.get(compositionStoreRef.url, (c) =>
+  streamSSE(c, async (stream) => {
+    for await (const snapshot of remoteStoreSnapshots(store, c.req.raw.signal)) {
+      await stream.writeSSE({ data: encodeRemoteStoreSnapshot(snapshot) });
+    }
+  }),
+);
 ```
 
 `remoteStoreSnapshots` combines updates while a consumer is busy.
@@ -326,12 +341,10 @@ The selector supplies a typed projection, but it does not compare values for equ
 Each accepted snapshot notifies each subscriber.
 Add equality-aware selection for frequent updates to many independent frame components.
 
-11. Handle hydration with a normal `Suspense` boundary.
-12. Put the consumer directly below the boundary.
-13. Use a transparent `null` fallback.
-
 The hook suspends during server rendering and before the first SSE message.
-The frame hydrator handles the expected recovery from server `Suspense` to client `Suspense`.
+Every frame already renders below a root `<Suspense fallback={null}>`.
+Do not add a manual `Suspense` wrapper for this case.
+Add a boundary only to scope a different fallback to part of a view.
 Loading or old UI must not cover program video.
 Refer to `frames/title.frame.tsx`.
 
@@ -340,7 +353,7 @@ When you change this data path, test these conditions:
 - Test the first replay.
 - Test a live update without a frame reload.
 - Test reconnection.
-- Test an unknown store ID and make sure that it returns `404`.
+- Test an unknown store path and make sure that it returns `404`.
 - Add the necessary tests to `tests/smoke.spec.ts`.
 
 In production, authenticate mutation endpoints and state-stream endpoints.
@@ -369,11 +382,11 @@ If you break the chain, you also break end-to-end type inference in `client/App.
 The control surface changes application state.
 The program monitor renders the compiled scene in the same way as a runtime.
 
-Create the runtime source one time at module scope.
-Pass this stable function to `useCompositor`.
-Do not call `sseRuntimeSource("/api/runtime")` inline.
-An inline call makes a new transport during each render.
-Repeated new transports restart the compositor.
+Create the stream one time at module scope.
+Pass this stable function to the `stream` option of `useStage`.
+Do not call `sseStream("/api/stream")` inline.
+An inline call makes a new stream during each render.
+Repeated new streams restart the stage.
 They can cause the React maximum-update-depth error.
 
 Obey these rules:
@@ -390,14 +403,14 @@ Obey these rules:
 - Do not change program output for each keystroke.
 - Give each action pending, disabled, and error states.
 - Prevent a second cue while the first cue is pending.
-- Show `compositor.phase` and `compositor.revision` near the preview.
-- Let the operator identify a deliberate black frame and an old compositor state.
+- Show `stage.phase` and `stage.revision` near the preview.
+- Let the operator identify a deliberate black frame and an old stage state.
 - Show control responses, runtime revisions, and source returns as separate statuses.
 - A successful control response means that the server persisted the command.
 - A runtime revision means that a composition update reached the preview.
 - A source return means that external media is flowing.
 - Register the same source extensions in the preview and the destination runtime.
-- For a custom OBS source, register its DOM renderer in the preview `useCompositor` call.
+- For a custom OBS source, register its DOM renderer in the preview `useStage` call.
 
 For a large production, add authentication and roles to each control command.
 Also add an audit trail and conflict handling for simultaneous operators.
@@ -408,14 +421,14 @@ This starter controls program output directly and does not have a rehearsal bus.
 ## CLI preview and OBS
 
 Use the CLI as the standard runtime tool for this starter.
-Do not make an application-owned OBS process only to connect to the standard runtime SSE endpoint.
+Do not make an application-owned OBS process only to connect to the standard stream SSE endpoint.
 
 Start `pnpm dev`.
 Then preview the compiled composition before you open OBS:
 
 ```sh
 pnpm exec vignette preview \
-  --snapshot http://127.0.0.1:5173/api/runtime \
+  --snapshot http://127.0.0.1:5173/api/stream \
   --name vignette-starter
 ```
 
@@ -434,11 +447,14 @@ pnpm exec vignette obs \
   --project vignette-starter \
   --obs-url ws://127.0.0.1:4455 \
   --password '<password>' \
-  --url http://127.0.0.1:5173/api/runtime
+  --url http://127.0.0.1:5173/api/stream
 ```
 
 If authentication is off, remove `--password`.
-The command includes the standard built-in source codecs and the official MoQ codec.
+The command includes the standard built-in source codecs.
+Load extension codecs with the repeatable `--extension <module>` option.
+Root-relative frame and asset URLs resolve against `--url`.
+If OBS reaches the Worker at a different address than the CLI, add `--browser-source-base-url <url>`.
 The library runtime reconnects the command when necessary.
 The command runs until it receives `SIGINT` or `SIGTERM`.
 The command does not supply health or readiness endpoints.
@@ -446,11 +462,10 @@ The command does not supply health or readiness endpoints.
 Only manage scenes and inputs with names below `vignette::<projectId>::`.
 The registry scene is also managed.
 Do not manage other OBS resources.
-The `--project` value must equal `COMPOSITION_PROJECT_ID` in `composition.tsx`.
+The `--project` value must equal the composition `id` in `composition.tsx`.
 
 Use an application-owned `OBSRuntime` only if the project needs one of these functions:
 
-- Project-specific OBS codecs.
 - Changes to built-in codec settings.
 - A transport that does not use SSE.
 - Custom asset storage.
@@ -461,7 +476,7 @@ Use an application-owned `OBSRuntime` only if the project needs one of these fun
 
 If you use an application-owned runtime, keep the process small.
 Do not put application logic in the process.
-Consume runtime messages and register only necessary extensions.
+Consume the composer stream with `consumeStream` and register only necessary extensions.
 Make errors and status available.
 Dispose of the runtime during shutdown.
 Do not read the application store.
@@ -546,12 +561,12 @@ Then use this procedure:
 1. Replace `cloudflare-vignette-starter` in the root `package.json` and `apps/composition/wrangler.jsonc`.
 2. Use a Wrangler name that is unique in the target Cloudflare account.
 3. Make sure that a deployment cannot replace a different generated project.
-4. Replace `cloudflare_vignette_starter` in the composition scripts, `playwright.config.ts`, and `vite.config.ts`.
+4. Replace `cloudflare_vignette_starter` in the composition scripts and `playwright.config.ts`.
 5. Use the underscore-normalized Wrangler environment name for the new application slug.
 6. Keep these values equal to the environment in `dist/<environment>/wrangler.json`.
 7. Replace the `@vignette-starter` package scope in each workspace `package.json` and TypeScript import.
 8. Make internal dependency names and root `--filter` commands agree with the new package names.
-9. Change `COMPOSITION_PROJECT_ID` in `apps/composition/src/composition.tsx`.
+9. Change the `id` passed to `defineComposition` in `apps/composition/src/composition.tsx`.
 10. Use the same value for `vignette obs --project` in the root `obs` script.
 11. Make sure that this value identifies the managed OBS namespace for the project.
 12. Run `pnpm install` to update `pnpm-lock.yaml`.

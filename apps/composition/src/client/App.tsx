@@ -1,11 +1,11 @@
-import { sseRuntimeSource, useCompositor } from "@strangecyan/vignette-target-dom/react";
+import { sseStream, useStage } from "@strangecyan/vignette-target-dom/react";
 import { hc, type InferResponseType } from "hono/client";
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 
 import type { CompositionApi } from "../worker";
 
 const client = hc<CompositionApi>("/");
-const runtimeSource = sseRuntimeSource("/api/runtime");
+const stream = sseStream("/api/stream");
 type CompositionSnapshot = InferResponseType<typeof client.api.state.$get>;
 
 export function App(): ReactElement {
@@ -13,9 +13,9 @@ export function App(): ReactElement {
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
-  const [stageRef, compositor] = useCompositor({
+  const [stageRef, stage] = useStage({
     sceneId: "main",
-    transport: runtimeSource,
+    stream,
     onError: (cause) => setError(cause.message),
   });
 
@@ -59,7 +59,7 @@ export function App(): ReactElement {
           <div className="mb-3 flex items-baseline justify-between gap-4">
             <h1 className="text-xl font-semibold">Vignette composition</h1>
             <span className="font-mono text-xs text-slate-400">
-              {compositor.phase} / rev {compositor.revision}
+              {stage.phase} / rev {stage.revision}
             </span>
           </div>
           <div className="overflow-hidden border border-white/15 bg-black shadow-2xl">
