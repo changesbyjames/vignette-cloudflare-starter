@@ -4,22 +4,13 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@strangecyan/vignette': file:../vignette-dx/packages/react
-  '@strangecyan/vignette-cli': file:../vignette-dx/packages/cli
-  '@strangecyan/vignette-core': file:../vignette-dx/packages/core
-  '@strangecyan/vignette-frame': file:../vignette-dx/packages/frame
-  '@strangecyan/vignette-target-dom': file:../vignette-dx/packages/target-dom
-  '@strangecyan/vignette-target-obs': file:../vignette-dx/packages/target-obs
-  '@strangecyan/vignette-vite': file:../vignette-dx/packages/vite
-
 importers:
 
   .:
     devDependencies:
       '@strangecyan/vignette-cli':
-        specifier: file:../vignette-dx/packages/cli
-        version: file:../vignette-dx/packages/cli(react@19.2.7)
+        specifier: 0.5.0
+        version: 0.5.0(react@19.2.7)
 
   apps/composition:
     dependencies:
@@ -30,20 +21,20 @@ importers:
         specifier: 0.3.0
         version: 0.3.0(@standard-schema/spec@1.1.0)(hono@4.12.30)
       '@strangecyan/vignette':
-        specifier: file:../../../vignette-dx/packages/react
-        version: file:../vignette-dx/packages/react(react@19.2.7)
+        specifier: 0.5.0
+        version: 0.5.0(react@19.2.7)
       '@strangecyan/vignette-core':
-        specifier: file:../../../vignette-dx/packages/core
-        version: file:../vignette-dx/packages/core
+        specifier: 0.5.0
+        version: 0.5.0
       '@strangecyan/vignette-frame':
-        specifier: file:../../../vignette-dx/packages/frame
-        version: file:../vignette-dx/packages/frame(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: 0.5.0
+        version: 0.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@strangecyan/vignette-target-dom':
-        specifier: file:../../../vignette-dx/packages/target-dom
-        version: file:../vignette-dx/packages/target-dom(react@19.2.7)
+        specifier: 0.5.0
+        version: 0.5.0(react@19.2.7)
       '@strangecyan/vignette-vite':
-        specifier: file:../../../vignette-dx/packages/vite
-        version: file:../vignette-dx/packages/vite(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vite@8.1.4(@types/node@24.10.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0))
+        specifier: 0.5.0
+        version: 0.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vite@8.1.4(@types/node@24.10.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0))
       '@xstate/store':
         specifier: 3.13.0
         version: 3.13.0(react@19.2.7)
@@ -802,39 +793,39 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@strangecyan/vignette-cli@file:../vignette-dx/packages/cli':
-    resolution: {directory: ../vignette-dx/packages/cli, type: directory}
+  '@strangecyan/vignette-cli@0.5.0':
+    resolution: {integrity: sha512-KUcpAExdmXayLBx67v6F3ipDBrOhVhs9Az9NkGGORLTpU7U3zMdIKgRmkBJ0Sq86nQdKyLBhx2oxW4hQWmLcQA==}
     engines: {node: '>=22'}
     hasBin: true
 
-  '@strangecyan/vignette-core@file:../vignette-dx/packages/core':
-    resolution: {directory: ../vignette-dx/packages/core, type: directory}
+  '@strangecyan/vignette-core@0.5.0':
+    resolution: {integrity: sha512-mLr+QaLJvLRg972rVXAWYakRUXs76Zbsqn0HbwXvRrLAL6SSr/mwpQK4YD98Ddczs+PrmDqdHiviwB9A7YJHjw==}
 
-  '@strangecyan/vignette-frame@file:../vignette-dx/packages/frame':
-    resolution: {directory: ../vignette-dx/packages/frame, type: directory}
+  '@strangecyan/vignette-frame@0.5.0':
+    resolution: {integrity: sha512-mcbIalwlamzzfsJTBhzyHdYH126E34hiHE0OhhYUlGNpCN+INr94Bdcz7QgtE0m+7A1TpLsDA6oVPtTGmvbfxw==}
     peerDependencies:
       react: ^19.2.0
       react-dom: ^19.2.0
 
-  '@strangecyan/vignette-target-dom@file:../vignette-dx/packages/target-dom':
-    resolution: {directory: ../vignette-dx/packages/target-dom, type: directory}
+  '@strangecyan/vignette-target-dom@0.5.0':
+    resolution: {integrity: sha512-NZQGyIU4yUrS/e+1jOr/vgkTA2XilP0lVAWeI0UYie8Di1hMi0NUGNfyn5xMaeLMSF6d/L100qUsfK5sVWuEtQ==}
     peerDependencies:
       react: ^19.2.0
     peerDependenciesMeta:
       react:
         optional: true
 
-  '@strangecyan/vignette-target-obs@file:../vignette-dx/packages/target-obs':
-    resolution: {directory: ../vignette-dx/packages/target-obs, type: directory}
+  '@strangecyan/vignette-target-obs@0.5.0':
+    resolution: {integrity: sha512-fx5MoibCqeEpg3zPb//rUDGTaBmV+8l7dZyz9Ymtxduxb2wUbRb+eUZ2dqFqVu/WVeRf7I3JsDTOD/gHLj73CA==}
 
-  '@strangecyan/vignette-vite@file:../vignette-dx/packages/vite':
-    resolution: {directory: ../vignette-dx/packages/vite, type: directory}
+  '@strangecyan/vignette-vite@0.5.0':
+    resolution: {integrity: sha512-yRdBiigU3PYKZvsHehUFcyyH3Hkx9GYoBGEr+GJ+wV4UBN19BB932JANC58vhXUWMXRycjAQm7sBfrAxaK9ofw==}
     peerDependencies:
       react: ^19.2.0
       vite: ^8.1.0
 
-  '@strangecyan/vignette@file:../vignette-dx/packages/react':
-    resolution: {directory: ../vignette-dx/packages/react, type: directory}
+  '@strangecyan/vignette@0.5.0':
+    resolution: {integrity: sha512-pz8nknBBqJ5J9vIq7b5/xOTrnKcynZSZu6VO09Bh3WMOaHadadIStdnU9M5KD7hMgdUxdie4LUZryFQ02tfhVg==}
     peerDependencies:
       react: ^19.2.0
 
@@ -1817,11 +1808,11 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@strangecyan/vignette-cli@file:../vignette-dx/packages/cli(react@19.2.7)':
+  '@strangecyan/vignette-cli@0.5.0(react@19.2.7)':
     dependencies:
-      '@strangecyan/vignette-core': file:../vignette-dx/packages/core
-      '@strangecyan/vignette-target-dom': file:../vignette-dx/packages/target-dom(react@19.2.7)
-      '@strangecyan/vignette-target-obs': file:../vignette-dx/packages/target-obs
+      '@strangecyan/vignette-core': 0.5.0
+      '@strangecyan/vignette-target-dom': 0.5.0(react@19.2.7)
+      '@strangecyan/vignette-target-obs': 0.5.0
       playwright: 1.61.1
       zod: 4.6.5
     transitivePeerDependencies:
@@ -1830,30 +1821,30 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@strangecyan/vignette-core@file:../vignette-dx/packages/core':
+  '@strangecyan/vignette-core@0.5.0':
     dependencies:
       yoga-layout: 3.2.1
       zod: 4.6.5
 
-  '@strangecyan/vignette-frame@file:../vignette-dx/packages/frame(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@strangecyan/vignette-frame@0.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@strangecyan/vignette': file:../vignette-dx/packages/react(react@19.2.7)
-      '@strangecyan/vignette-core': file:../vignette-dx/packages/core
+      '@strangecyan/vignette': 0.5.0(react@19.2.7)
+      '@strangecyan/vignette-core': 0.5.0
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
       typescript: 6.0.3
       zod: 4.6.5
 
-  '@strangecyan/vignette-target-dom@file:../vignette-dx/packages/target-dom(react@19.2.7)':
+  '@strangecyan/vignette-target-dom@0.5.0(react@19.2.7)':
     dependencies:
-      '@strangecyan/vignette-core': file:../vignette-dx/packages/core
+      '@strangecyan/vignette-core': 0.5.0
       ramda: 0.32.0
     optionalDependencies:
       react: 19.2.7
 
-  '@strangecyan/vignette-target-obs@file:../vignette-dx/packages/target-obs':
+  '@strangecyan/vignette-target-obs@0.5.0':
     dependencies:
-      '@strangecyan/vignette-core': file:../vignette-dx/packages/core
+      '@strangecyan/vignette-core': 0.5.0
       obs-websocket-js: 5.0.8
       ramda: 0.32.0
       zod: 4.6.5
@@ -1862,11 +1853,11 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@strangecyan/vignette-vite@file:../vignette-dx/packages/vite(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vite@8.1.4(@types/node@24.10.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0))':
+  '@strangecyan/vignette-vite@0.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vite@8.1.4(@types/node@24.10.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0))':
     dependencies:
-      '@strangecyan/vignette': file:../vignette-dx/packages/react(react@19.2.7)
-      '@strangecyan/vignette-core': file:../vignette-dx/packages/core
-      '@strangecyan/vignette-frame': file:../vignette-dx/packages/frame(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@strangecyan/vignette': 0.5.0(react@19.2.7)
+      '@strangecyan/vignette-core': 0.5.0
+      '@strangecyan/vignette-frame': 0.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react: 19.2.7
       tinyglobby: 0.2.17
       vite: 8.1.4(@types/node@24.10.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.21.0)
@@ -1874,9 +1865,9 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
-  '@strangecyan/vignette@file:../vignette-dx/packages/react(react@19.2.7)':
+  '@strangecyan/vignette@0.5.0(react@19.2.7)':
     dependencies:
-      '@strangecyan/vignette-core': file:../vignette-dx/packages/core
+      '@strangecyan/vignette-core': 0.5.0
       react: 19.2.7
       react-reconciler: 0.33.0(react@19.2.7)
       zod: 4.6.5

@@ -8,25 +8,11 @@ allowBuilds:
   workerd: true
 
 minimumReleaseAgeExclude:
-  - '@strangecyan/vignette-cli@0.4.1'
-  - '@strangecyan/vignette-core@0.4.1'
-  - '@strangecyan/vignette-frame@0.4.1'
-  - '@strangecyan/vignette-moq@0.4.1'
-  - '@strangecyan/vignette-target-dom@0.4.1'
-  - '@strangecyan/vignette-target-obs@0.4.1'
-  - '@strangecyan/vignette-vite@0.4.1'
-  - '@strangecyan/vignette@0.4.1'
-
-# LOCAL-OVERRIDES START: temporary file: installs of unpublished Vignette packages in ../vignette-dx.
-# Remove this whole block (through LOCAL-OVERRIDES END) once the new Vignette version is published,
-# then set every @strangecyan/* version in package.json files (and minimumReleaseAgeExclude above)
-# to that version and run `pnpm install`.
-overrides:
-  '@strangecyan/vignette': file:../vignette-dx/packages/react
-  '@strangecyan/vignette-cli': file:../vignette-dx/packages/cli
-  '@strangecyan/vignette-core': file:../vignette-dx/packages/core
-  '@strangecyan/vignette-frame': file:../vignette-dx/packages/frame
-  '@strangecyan/vignette-target-dom': file:../vignette-dx/packages/target-dom
-  '@strangecyan/vignette-target-obs': file:../vignette-dx/packages/target-obs
-  '@strangecyan/vignette-vite': file:../vignette-dx/packages/vite
-# LOCAL-OVERRIDES END
+  - '@strangecyan/vignette-cli@0.5.0'
+  - '@strangecyan/vignette-core@0.5.0'
+  - '@strangecyan/vignette-frame@0.5.0'
+  - '@strangecyan/vignette-moq@0.5.0'
+  - '@strangecyan/vignette-target-dom@0.5.0'
+  - '@strangecyan/vignette-target-obs@0.5.0'
+  - '@strangecyan/vignette-vite@0.5.0'
+  - '@strangecyan/vignette@0.5.0'
