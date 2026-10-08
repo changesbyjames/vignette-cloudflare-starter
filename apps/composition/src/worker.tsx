@@ -123,7 +123,7 @@ app.all("/api/*", (c) => toDurableObject(c.req.raw, c.env));
 app.get(compositionStoreRef.url, (c) => toDurableObject(c.req.raw, c.env));
 
 const handleFrame = createFrameRequestHandler(frames);
-app.all("/__vignette/*", async (c) => (await handleFrame(c.req.raw)) ?? c.notFound());
+app.all("/__vignette/*", (c) => handleFrame(c.req.raw) ?? c.notFound());
 
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
